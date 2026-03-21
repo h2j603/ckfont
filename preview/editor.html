@@ -72,26 +72,34 @@ button:active { opacity:.7; }
   </div>
 
   <div class="sep"></div>
-  <div class="sl">Cut</div>
+  <div class="sl">Modular</div>
 
   <div class="row">
-    <label>Direction</label>
-    <select id="cutDir">
-      <option value="none">None</option>
-      <option value="v">Vertical</option>
-      <option value="h">Horizontal</option>
-      <option value="grid">Grid</option>
+    <label>Enable</label>
+    <select id="modular">
+      <option value="off">Off</option>
+      <option value="on">On</option>
     </select>
   </div>
   <div class="row">
-    <label>Cut W</label>
-    <input type="range" id="cutW" min="1" max="80" value="12">
-    <span class="v" id="cutWV">12</span>
+    <label>Bar W</label>
+    <input type="range" id="barW" min="20" max="200" value="80">
+    <span class="v" id="barWV">80</span>
   </div>
   <div class="row">
-    <label>Spacing</label>
-    <input type="range" id="cutS" min="20" max="200" value="70">
-    <span class="v" id="cutSV">70</span>
+    <label>Gap</label>
+    <input type="range" id="barGap" min="5" max="100" value="35">
+    <span class="v" id="barGapV">35</span>
+  </div>
+  <div class="row">
+    <label>Radius</label>
+    <input type="range" id="barR" min="0" max="100" value="40">
+    <span class="v" id="barRV">40</span>
+  </div>
+  <div class="row">
+    <label>Min H</label>
+    <input type="range" id="barMinH" min="0" max="120" value="40">
+    <span class="v" id="barMinHV">40</span>
   </div>
 
   <div class="sep"></div>
@@ -116,7 +124,7 @@ document.querySelectorAll('input[type=range]').forEach(el => {
   if (v) el.oninput = () => { v.textContent = el.value; draw(); };
 });
 $('text').oninput = draw;
-$('cutDir').onchange = draw;
+$('modular').onchange = draw;
 
 
 // ════════════════════════════════════════════════
@@ -233,7 +241,7 @@ function roundCorners(pts, r) {
 
 
 // ════════════════════════════════════════════════
-//  Cut effect — polygon clipping
+//  Modular bars — 독립적 캡슐 바로 글자 구성
 // ════════════════════════════════════════════════
 
 function clipHalf(pts, axis, val, keep) {
@@ -253,25 +261,91 @@ function clipHalf(pts, axis, val, keep) {
   return out;
 }
 
-function cutStrips(contours, axis, lo, hi, cutW, cutS) {
-  const strips = [];
-  let pos = lo, solid = lo;
-  while (pos < hi) {
-    if (pos > solid) strips.push([solid, pos]);
-    solid = pos + cutW;
-    pos += cutS;
-  }
-  if (solid < hi) strips.push([solid, hi]);
+function roundedRectContour(x0, y0, x1, y1, r) {
+  // 둥근 사각형을 폴리곤 포인트로 생성 (캡슐형)
+  const w = x1 - x0, h = y1 - y0;
+  r = Math.min(r, w / 2, h / 2);
+  if (r < 1) return [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
 
-  const result = [];
-  for (const c of contours) {
-    for (const [a, b] of strips) {
-      let cl = clipHalf(c, axis, a, 'gte');
-      cl = clipHalf(cl, axis, b, 'lte');
-      if (cl.length >= 3) result.push(cl);
+  const pts = [];
+  const S = 8; // 코너당 세그먼트 수
+  // 우하 코너
+  for (let i = 0; i <= S; i++) {
+    const a = (Math.PI/2) * (i / S);
+    pts.push({x: x1 - r + Math.cos(a) * r, y: y0 + r - Math.sin(a) * r});
+  }
+  // 우상 코너
+  for (let i = 0; i <= S; i++) {
+    const a = (Math.PI/2) * (i / S);
+    pts.push({x: x1 - r + Math.sin(a) * r, y: y1 - r + Math.cos(a) * r});
+  }
+  // 좌상 코너
+  for (let i = 0; i <= S; i++) {
+    const a = (Math.PI/2) * (i / S);
+    pts.push({x: x0 + r - Math.cos(a) * r, y: y1 - r + Math.sin(a) * r});
+  }
+  // 좌하 코너
+  for (let i = 0; i <= S; i++) {
+    const a = (Math.PI/2) * (i / S);
+    pts.push({x: x0 + r - Math.sin(a) * r, y: y0 + r - Math.cos(a) * r});
+  }
+  return pts;
+}
+
+function modularBars(contours, barW, gap, radius, minH) {
+  // 1. 전체 경계 파악
+  const all = contours.flat();
+  if (!all.length) return [];
+  const xs = all.map(p => p.x), ys = all.map(p => p.y);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+
+  // 2. 컬럼 그리드 (글리프 중앙 정렬)
+  const pitch = barW + gap;
+  const glyphW = xMax - xMin;
+  const nCols = Math.max(1, Math.round(glyphW / pitch));
+  const totalW = nCols * barW + (nCols - 1) * gap;
+  const startX = (xMin + xMax) / 2 - totalW / 2;
+
+  const bars = [];
+
+  for (let ci = 0; ci < nCols; ci++) {
+    const colX = startX + ci * pitch;
+
+    // 3. 컨투어를 이 컬럼으로 클리핑
+    const fragments = [];
+    for (const c of contours) {
+      let cl = clipHalf(c, 'x', colX, 'gte');
+      cl = clipHalf(cl, 'x', colX + barW, 'lte');
+      if (cl.length >= 3) fragments.push(cl);
+    }
+
+    // 4. 각 프래그먼트의 y 범위 추출
+    const ySpans = [];
+    for (const frag of fragments) {
+      const fys = frag.map(p => p.y);
+      const fyMin = Math.min(...fys), fyMax = Math.max(...fys);
+      if (fyMax - fyMin >= minH) ySpans.push([fyMin, fyMax]);
+    }
+
+    // 5. 겹치는 y 범위 병합
+    ySpans.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const [a, b] of ySpans) {
+      if (merged.length && a <= merged[merged.length-1][1] + gap * 0.3) {
+        merged[merged.length-1][1] = Math.max(merged[merged.length-1][1], b);
+      } else {
+        merged.push([a, b]);
+      }
+    }
+
+    // 6. 각 y 범위에 둥근 사각형 바 생성
+    for (const [y0, y1] of merged) {
+      bars.push(roundedRectContour(colX, y0, colX + barW, y1, radius));
     }
   }
-  return result;
+
+  return bars;
 }
 
 
@@ -299,24 +373,10 @@ function processGlyph(glyph, params) {
   let inner = [];
   if (params.inline > 0) inner = clipperOffset(contours, -params.inline);
 
-  // Cuts
-  if (params.cutDir !== 'none' && contours.length) {
-    const all = contours.flat();
-    const xs = all.map(p => p.x), ys = all.map(p => p.y);
-    const xMin = Math.min(...xs), xMax = Math.max(...xs);
-    const yMin = Math.min(...ys), yMax = Math.max(...ys);
-
-    if (params.cutDir === 'v' || params.cutDir === 'grid')
-      contours = cutStrips(contours, 'x', xMin, xMax, params.cutW, params.cutS);
-    if (params.cutDir === 'h' || params.cutDir === 'grid')
-      contours = cutStrips(contours, 'y', yMin, yMax, params.cutW, params.cutS);
-
-    if (inner.length) {
-      if (params.cutDir === 'v' || params.cutDir === 'grid')
-        inner = cutStrips(inner, 'x', xMin, xMax, params.cutW, params.cutS);
-      if (params.cutDir === 'h' || params.cutDir === 'grid')
-        inner = cutStrips(inner, 'y', yMin, yMax, params.cutW, params.cutS);
-    }
+  // Modular bars — 바의 배치로 글자를 표현
+  if (params.modular && contours.length) {
+    contours = modularBars(contours, params.barW, params.barGap, params.barR, params.barMinH);
+    inner = []; // 모듈러 모드에서는 인라인 무시
   }
 
   return {outer: contours, inner};
@@ -374,9 +434,11 @@ function draw() {
     thick: N('thick'),
     inline: N('inline'),
     corner: N('corner'),
-    cutDir: $('cutDir').value,
-    cutW: N('cutW'),
-    cutS: N('cutS'),
+    modular: $('modular').value === 'on',
+    barW: N('barW'),
+    barGap: N('barGap'),
+    barR: N('barR'),
+    barMinH: N('barMinH'),
   };
 
   let cursorX = 16;
@@ -408,7 +470,7 @@ function draw() {
   }
 
   // Info
-  $('info').textContent = `CK Sans Base | ${font.numGlyphs} glyphs | size:${size} w:${params.sx*100|0}% h:${params.sy*100|0}% thick:${params.thick} inline:${params.inline} r:${params.corner}`;
+  $('info').textContent = `CK Sans Base | ${font.numGlyphs} glyphs | size:${size} w:${params.sx*100|0}% h:${params.sy*100|0}%` + (params.modular ? ` | modular: barW=${params.barW} gap=${params.barGap} r=${params.barR}` : '');
 }
 
 
@@ -426,9 +488,11 @@ $('exportBtn').onclick = () => {
     thick: N('thick'),
     inline: N('inline'),
     corner: N('corner'),
-    cutDir: $('cutDir').value,
-    cutW: N('cutW'),
-    cutS: N('cutS'),
+    modular: $('modular').value === 'on',
+    barW: N('barW'),
+    barGap: N('barGap'),
+    barR: N('barR'),
+    barMinH: N('barMinH'),
   };
 
   const notdef = new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:650, path:new opentype.Path()});
@@ -461,7 +525,7 @@ $('exportBtn').onclick = () => {
   }
 
   let style = 'ExtraBold';
-  if (params.cutDir !== 'none') style += ' Cut';
+  if (params.modular) style += ' Modular';
   if (params.inline > 0) style += ' Inline';
 
   const expFont = new opentype.Font({
