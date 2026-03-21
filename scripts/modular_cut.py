@@ -37,14 +37,10 @@ BUILD_DIR = ROOT / "build"
 
 # 처리할 인스턴스: (입력 파일명, 출력 파일명, 폰트 이름 접미사)
 INSTANCES = [
-    ("CKSans-Base.ttf",          "CKSans-Cut.ttf",              "Cut ExtraBold"),
-    ("CKSans-Regular.ttf",       "CKSans-Cut-Regular.ttf",       "Cut Regular"),
-    ("CKSans-KR-ExtraBold.ttf",  "CKSans-Cut-KR-ExtraBold.ttf", "Cut KR ExtraBold"),
-    ("CKSans-KR-Regular.ttf",    "CKSans-Cut-KR-Regular.ttf",    "Cut KR Regular"),
-    ("CKSans-JP-ExtraBold.ttf",  "CKSans-Cut-JP-ExtraBold.ttf", "Cut JP ExtraBold"),
-    ("CKSans-JP-Regular.ttf",    "CKSans-Cut-JP-Regular.ttf",    "Cut JP Regular"),
-    ("CKSans-SC-ExtraBold.ttf",  "CKSans-Cut-SC-ExtraBold.ttf", "Cut SC ExtraBold"),
-    ("CKSans-SC-Regular.ttf",    "CKSans-Cut-SC-Regular.ttf",    "Cut SC Regular"),
+    ("CKSans-Regular.ttf",       "CKSans-Cut.ttf",           "Cut"),
+    ("CKSans-KR-Regular.ttf",    "CKSans-Cut-KR.ttf",        "Cut KR"),
+    ("CKSans-JP-Regular.ttf",    "CKSans-Cut-JP.ttf",         "Cut JP"),
+    ("CKSans-SC-Regular.ttf",    "CKSans-Cut-SC.ttf",         "Cut SC"),
 ]
 
 # ── 커팅 대상: 폰트 내 모든 비-공백 글리프 ──
@@ -120,17 +116,20 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
 
     pathops INTERSECTION: 컬럼 직사각형과 글리프의 boolean 교차.
     카운터(D, O, B 내부 구멍)를 정확히 처리.
-    곡선 글리프도 pathops가 정밀하게 계산.
+
+    Monospaced 그리드: advance width를 pitch 배수로 스냅하여
+    같은 AW 그룹의 글리프들이 동일한 컬럼 그리드를 공유.
     """
     pitch = module_w + gap
 
-    # 글리프 중심 기준으로 그리드 정렬
-    glyph_cx = (glyph_obj.xMin + glyph_obj.xMax) / 2
-    glyph_w = glyph_obj.xMax - glyph_obj.xMin
+    # advance width 기준 그리드 (pitch 배수로 스냅)
+    adv_w = hmtx_entry[0]
+    n_cols = max(1, round(adv_w / pitch))
+    snapped_w = n_cols * pitch  # 스냅된 advance width
+    grid_cx = adv_w / 2  # 원래 AW 중심 기준
 
-    n_cols = max(1, int(round(glyph_w / pitch)))
     total_grid_w = n_cols * module_w + (n_cols - 1) * gap
-    grid_start = glyph_cx - total_grid_w / 2
+    grid_start = grid_cx - total_grid_w / 2
 
     y_lo = glyph_obj.yMin - 50
     y_hi = glyph_obj.yMax + 50
@@ -227,6 +226,11 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
     hmtx = font["hmtx"]
 
     pitch = module_w + gap
+
+    # Monospaced: 글리프별 advance width → 가장 가까운 pitch 배수로 스냅
+    # 같은 폭의 글리프끼리 동일한 그리드를 공유 → 동일 스템 = 동일 바 수
+    # 최대 AW는 쓰지 않음 (합자 등 극단값 제외)
+
     print(f"\n── {input_path.name} → {output_path.name} ──")
     print(f"  module_w={module_w}, gap={gap}, radius={radius}, pitch={pitch}")
 
@@ -256,8 +260,9 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
             glyph_path = pathops.Path()
             gs[glyph_name].draw(glyph_path.getPen())
 
+            adv_w = hmtx[glyph_name][0]
             modules = extract_modules(
-                glyph_path, g, module_w, gap, hmtx[glyph_name]
+                glyph_path, g, module_w, gap, hmtx[glyph_name],
             )
 
             if not modules:
@@ -269,6 +274,11 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
                 continue
 
             glyf[glyph_name] = new_glyph
+            # advance width를 pitch 스냅 값으로 통일
+            n = max(1, round(adv_w / pitch))
+            snapped_aw = n * pitch
+            _, lsb = hmtx[glyph_name]
+            hmtx[glyph_name] = (snapped_aw, lsb)
             modified += 1
 
         except Exception as e:
@@ -277,12 +287,13 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
     print(f"  Modified {modified} glyph(s), {errors} error(s).")
 
-    # 이름 변경
+    # 이름 변경 — "CK Sans XX" → "CK Sans Cut XX" (이중 접미사 방지)
     name_table = font["name"]
     for record in name_table.names:
         text = record.toUnicode()
         if "CK Sans" in text:
-            new_text = text.replace("CK Sans", f"CK Sans {name_suffix}")
+            # "CK Sans KR" → "CK Sans Cut KR" 등 "CK Sans" 바로 뒤에 "Cut" 삽입
+            new_text = text.replace("CK Sans", "CK Sans Cut", 1)
             name_table.setName(
                 new_text, record.nameID, record.platformID,
                 record.platEncID, record.langID,
