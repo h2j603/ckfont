@@ -299,6 +299,11 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
                 record.platEncID, record.langID,
             )
 
+    # CFF 전용 테이블 제거 (CFF→TrueType 변환 폰트에 남아있으면 Safari 거부)
+    for cff_table in ("VORG",):
+        if cff_table in font:
+            del font[cff_table]
+
     # 저장
     font.save(str(output_path))
     font.close()
