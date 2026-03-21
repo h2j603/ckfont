@@ -26,7 +26,7 @@ INSTANCES = [
     {"key": "extrabold", "name": "CK Sans ExtraBold", "wght": 800, "wdth": 75},
 ]
 
-FLATTEN_STEPS = 6  # 곡선당 직선 세그먼트 수
+FLATTEN_STEPS = 16  # 곡선당 직선 세그먼트 수 (높을수록 부드러움)
 
 
 def flatten_qcurve(points, steps=FLATTEN_STEPS):
