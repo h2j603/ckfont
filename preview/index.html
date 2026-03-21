@@ -1,139 +1,181 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CK Sans — Preview</title>
+<title>CK Sans Cut</title>
 <style>
 @font-face {
-  font-family: 'CK Sans Cut';
-  src: url('./CKSans-Cut.woff2?v=3') format('woff2'),
-       url('./CKSans-Cut.ttf?v=3') format('truetype');
-  font-display: swap;
+  font-family: 'CKCut';
+  src: url('CKSans-Cut.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'CK Sans Cut KR';
-  src: url('./CKSans-Cut-KR.woff2?v=3') format('woff2'),
-       url('./CKSans-Cut-KR.ttf?v=3') format('truetype');
-  font-display: swap;
+  font-family: 'CKCutKR';
+  src: url('CKSans-Cut-KR.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'CK Sans Cut JP';
-  src: url('./CKSans-Cut-JP.woff2?v=3') format('woff2'),
-       url('./CKSans-Cut-JP.ttf?v=3') format('truetype');
-  font-display: swap;
+  font-family: 'CKCutJP';
+  src: url('CKSans-Cut-JP.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'CK Sans Cut SC';
-  src: url('./CKSans-Cut-SC.woff2?v=3') format('woff2'),
-       url('./CKSans-Cut-SC.ttf?v=3') format('truetype');
-  font-display: swap;
+  font-family: 'CKCutSC';
+  src: url('CKSans-Cut-SC.woff2') format('woff2');
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16px; }
-h1 { font-size:12px; color:#555; text-transform:uppercase; letter-spacing:.1em; margin-bottom:16px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-.preview {
-  line-height:1.1;
-  word-break:break-all;
-  margin-bottom:24px;
+body {
+  background: #0a0a0a;
+  color: #f0f0f0;
+  font-family: -apple-system, system-ui, sans-serif;
+  padding: 20px;
+  padding-bottom: 140px;
 }
 
-.controls { display:flex; flex-direction:column; gap:10px; max-width:600px; }
-.row { display:flex; align-items:center; gap:8px; }
-.row label { font-size:11px; color:#888; min-width:56px; text-transform:uppercase; }
-.row input[type=range] { flex:1; accent-color:#0f0; }
-.row .v { font-size:11px; color:#0f0; min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
-input[type=text] { background:#222; color:#eee; border:1px solid #444; padding:8px; border-radius:4px; font-size:14px; width:100%; }
-.sep { height:1px; background:#333; margin:8px 0; }
+.tag {
+  display: inline-block;
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border: 1px solid #333;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 12px;
+}
 
-a { color:#0f0; text-decoration:none; font-size:12px; }
-a:hover { text-decoration:underline; }
+.section { margin-bottom: 48px; }
+
+.sample {
+  line-height: 1.05;
+  word-break: break-all;
+}
+
+.status {
+  font-size: 11px;
+  margin-top: 8px;
+  color: #333;
+}
+.status.loaded { color: #0c0; }
+.status.failed { color: #c00; }
+
+/* Controls */
+.controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #151515;
+  border-top: 1px solid #2a2a2a;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  z-index: 10;
+}
+.controls label {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.controls input[type=range] {
+  width: 100px;
+  accent-color: #0f0;
+  vertical-align: middle;
+}
+.controls span {
+  font-size: 11px;
+  color: #0f0;
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  display: inline-block;
+}
 </style>
 </head>
 <body>
 
-<h1>CK Sans — Latin</h1>
-
-<div class="preview" id="previewLatin" style="font-size:72px; font-family:'CK Sans Cut',sans-serif;">
-  CONDENSED KIWI
+<div class="section">
+  <div class="tag">Latin</div>
+  <div class="sample" id="latin" style="font-family: 'CKCut', sans-serif; font-size: 64px;">
+    CONDENSED KIWI
+  </div>
+  <div class="status" id="statusLatin">loading...</div>
 </div>
 
-<h1 style="margin-top:32px;">CK Sans — Korean</h1>
-
-<div class="preview" id="previewKR" style="font-size:72px; font-family:'CK Sans Cut KR',sans-serif;">
-  응축된 키위 디자인
+<div class="section">
+  <div class="tag">Korean</div>
+  <div class="sample" id="kr" style="font-family: 'CKCutKR', sans-serif; font-size: 64px;">
+    응축된 키위 디자인
+  </div>
+  <div class="status" id="statusKR">loading...</div>
 </div>
 
-<h1 style="margin-top:32px;">CK Sans — Japanese</h1>
-
-<div class="preview" id="previewJP" style="font-size:72px; font-family:'CK Sans Cut JP',sans-serif;">
-  凝縮されたキウイ
+<div class="section">
+  <div class="tag">Japanese</div>
+  <div class="sample" id="jp" style="font-family: 'CKCutJP', sans-serif; font-size: 64px;">
+    凝縮されたキウイ
+  </div>
+  <div class="status" id="statusJP">loading...</div>
 </div>
 
-<h1 style="margin-top:32px;">CK Sans — Chinese</h1>
-
-<div class="preview" id="previewSC" style="font-size:72px; font-family:'CK Sans Cut SC',sans-serif;">
-  浓缩奇异果设计
+<div class="section">
+  <div class="tag">Chinese</div>
+  <div class="sample" id="sc" style="font-family: 'CKCutSC', sans-serif; font-size: 64px;">
+    浓缩奇异果设计
+  </div>
+  <div class="status" id="statusSC">loading...</div>
 </div>
 
 <div class="controls">
-  <input type="text" id="text" value="CONDENSED KIWI" placeholder="Type here...">
-  <div class="sep"></div>
-
-  <div class="row">
-    <label>Size</label>
-    <input type="range" id="size" min="16" max="200" value="72">
-    <span class="v" id="sizeV">72</span>
-  </div>
-  <div class="row">
-    <label>Spacing</label>
-    <input type="range" id="spacing" min="-20" max="40" value="0">
-    <span class="v" id="spacingV">0</span>
-  </div>
-  <div class="row">
-    <label>Leading</label>
-    <input type="range" id="leading" min="80" max="160" value="110">
-    <span class="v" id="leadingV">110</span>
-  </div>
-  <div class="row">
-    <label>Color</label>
-    <input type="range" id="bright" min="0" max="100" value="93">
-    <span class="v" id="brightV">93</span>
-  </div>
-
-  <div class="sep"></div>
-  <a href="./editor.html">Open Editor →</a>
+  <label>Size <input type="range" id="sz" min="24" max="200" value="64"> <span id="szV">64</span></label>
+  <label>Spacing <input type="range" id="ls" min="-10" max="30" value="0"> <span id="lsV">0</span></label>
+  <label>Leading <input type="range" id="lh" min="80" max="160" value="105"> <span id="lhV">105</span></label>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
+// Font load detection
+const fonts = [
+  { family: 'CKCut',   el: 'statusLatin', label: 'Latin' },
+  { family: 'CKCutKR', el: 'statusKR',    label: 'KR' },
+  { family: 'CKCutJP', el: 'statusJP',    label: 'JP' },
+  { family: 'CKCutSC', el: 'statusSC',    label: 'SC' },
+];
+
+document.fonts.ready.then(() => {
+  fonts.forEach(f => {
+    const el = document.getElementById(f.el);
+    const loaded = document.fonts.check(`64px "${f.family}"`);
+    if (loaded) {
+      el.textContent = f.label + ' loaded';
+      el.className = 'status loaded';
+    } else {
+      el.textContent = f.label + ' FAILED to load';
+      el.className = 'status failed';
+    }
+  });
+});
+
+// Controls
+const targets = ['latin', 'kr', 'jp', 'sc'];
+const sz = document.getElementById('sz');
+const ls = document.getElementById('ls');
+const lh = document.getElementById('lh');
 
 function update() {
-  const txt = $('text').value || 'CK SANS';
-  const sz = $('size').value + 'px';
-  const ls = $('spacing').value + 'px';
-  const lh = $('leading').value + '%';
-  const b = Math.round($('bright').value * 2.55);
-  const clr = `rgb(${b},${b},${b})`;
-  const cjk = new Set(['previewKR','previewJP','previewSC']);
-  [$('previewLatin'), $('previewKR'), $('previewJP'), $('previewSC')].forEach(el => {
-    if (!el) return;
-    if (!cjk.has(el.id)) el.textContent = txt;
-    el.style.fontSize = sz;
-    el.style.letterSpacing = ls;
-    el.style.lineHeight = lh;
-    el.style.color = clr;
+  document.getElementById('szV').textContent = sz.value;
+  document.getElementById('lsV').textContent = ls.value;
+  document.getElementById('lhV').textContent = lh.value;
+  targets.forEach(id => {
+    const el = document.getElementById(id);
+    el.style.fontSize = sz.value + 'px';
+    el.style.letterSpacing = ls.value + 'px';
+    el.style.lineHeight = lh.value + '%';
   });
 }
 
-document.querySelectorAll('input').forEach(el => {
-  const v = $(el.id + 'V');
-  el.oninput = () => { if (v) v.textContent = el.value; update(); };
-});
-
-update();
+sz.oninput = ls.oninput = lh.oninput = update;
 </script>
 </body>
 </html>
