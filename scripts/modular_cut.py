@@ -37,17 +37,25 @@ BUILD_DIR = ROOT / "build"
 
 # 처리할 인스턴스: (입력 파일명, 출력 파일명, 폰트 이름 접미사)
 INSTANCES = [
-    ("CKSans-Base.ttf",    "CKSans-Cut.ttf",         "Cut ExtraBold"),
-    ("CKSans-Regular.ttf", "CKSans-Cut-Regular.ttf",  "Cut Regular"),
+    ("CKSans-Base.ttf",          "CKSans-Cut.ttf",              "Cut ExtraBold"),
+    ("CKSans-Regular.ttf",       "CKSans-Cut-Regular.ttf",       "Cut Regular"),
+    ("CKSans-KR-ExtraBold.ttf",  "CKSans-Cut-KR-ExtraBold.ttf", "Cut KR ExtraBold"),
+    ("CKSans-KR-Regular.ttf",    "CKSans-Cut-KR-Regular.ttf",    "Cut KR Regular"),
 ]
 
-# ── 커팅 대상 ──
-CUT_TARGETS = set()
-CUT_TARGETS.update(chr(c) for c in range(0x41, 0x5B))  # A-Z
-CUT_TARGETS.update(chr(c) for c in range(0x61, 0x7B))  # a-z
-CUT_TARGETS.update(chr(c) for c in range(0x30, 0x3A))  # 0-9
+# ── 커팅 대상: 폰트 내 모든 비-공백 글리프 ──
+# cmap에서 동적으로 수집 (main에서 설정)
+CUT_ALL = True  # True면 cmap 전체 대상
 
-SKIP_GLYPHS = {"i", "l", ".", ",", "'", '"', "-", "_", " "}
+# 커팅 제외: 너무 작거나 모듈화가 의미 없는 글리프
+SKIP_CODEPOINTS = {
+    0x0020,  # space
+    0x00A0,  # nbsp
+    0x00AD,  # soft hyphen
+    0x200B,  # zero-width space
+    0x200C, 0x200D, 0x200E, 0x200F,  # zero-width joiners
+    0xFEFF,  # BOM
+}
 
 # 최소 모듈 크기 (이보다 작으면 무시)
 MIN_MODULE_W = 10
@@ -221,20 +229,23 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
     modified = 0
     errors = 0
 
-    for char in sorted(CUT_TARGETS):
-        cp = ord(char)
-        glyph_name = cmap.get(cp)
-        if not glyph_name or glyph_name not in glyf:
+    for cp, glyph_name in sorted(cmap.items()):
+        if cp in SKIP_CODEPOINTS:
+            continue
+        if glyph_name not in glyf:
             continue
 
         g = glyf[glyph_name]
         if g.isComposite() or g.numberOfContours <= 0:
             continue
-        if char in SKIP_GLYPHS:
-            continue
 
+        if not hasattr(g, 'xMax') or g.xMax is None:
+            continue
         glyph_w = g.xMax - g.xMin
         if glyph_w < module_w:
+            continue
+        glyph_h = g.yMax - g.yMin
+        if glyph_h < MIN_MODULE_H:
             continue
 
         try:
@@ -255,10 +266,9 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
             glyf[glyph_name] = new_glyph
             modified += 1
-            print(f"  '{char}': {len(modules)} modules")
 
         except Exception as e:
-            print(f"  '{char}': error — {e}")
+            errors += 1
             errors += 1
 
     print(f"  Modified {modified} glyph(s), {errors} error(s).")
@@ -297,9 +307,9 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    module_w = 50
-    gap = 22
-    radius = 25
+    module_w = 65
+    gap = 25
+    radius = 32
 
     # 인자 파싱
     args = sys.argv[1:]
