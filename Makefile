@@ -1,7 +1,7 @@
-.PHONY: all download base build clean info dump rebuild
+.PHONY: all download base cut build clean info dump rebuild
 
-# Default: 베이스 폰트 빌드
-all: base
+# Default: 베이스 + 모듈러 컷
+all: base cut
 
 # Noto Sans 소스 다운로드
 download:
@@ -11,6 +11,10 @@ download:
 base:
 	python3 scripts/build_base.py
 	python3 scripts/round_terminals.py
+
+# 모듈러 컷 변형 (베이스 기반)
+cut: base
+	python3 scripts/modular_cut.py
 
 # 레거시: 파라미터 수정 + 글리프 수정 + Variable Font 빌드
 build-variable:
