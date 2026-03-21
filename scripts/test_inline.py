@@ -150,12 +150,28 @@ def make_vertical_cuts(x_min, x_max, y_min, y_max, cut_width, cut_spacing):
     return cuts
 
 
+def ensure_cw(poly):
+    """폴리곤이 시계방향(CW)인지 확인하고, 아니면 뒤집는다.
+    TrueType은 외곽 컨투어가 CW(음수 면적)여야 한다."""
+    area = 0
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        area += (x1 * y2 - x2 * y1)
+    if area > 0:  # CCW → reverse to CW
+        return list(reversed(poly))
+    return poly
+
+
 def polygons_to_ttglyph(polygons):
-    """폴리곤 리스트를 TrueType 글리프로 변환."""
+    """폴리곤 리스트를 TrueType 글리프로 변환.
+    모든 컨투어를 CW(시계방향)로 통일."""
     pen = TTGlyphPen(None)
     for poly in polygons:
         if len(poly) < 3:
             continue
+        poly = ensure_cw(poly)
         pen.moveTo(poly[0])
         for pt in poly[1:]:
             pen.lineTo(pt)
