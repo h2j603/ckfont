@@ -1,41 +1,36 @@
-.PHONY: all download modify-params modify-glyphs build clean info dump validate rebuild
+.PHONY: all download base build clean info dump rebuild
 
-# Default target
-all: download modify-params modify-glyphs build
+# Default: 베이스 폰트 빌드
+all: base
 
-# Download Noto Sans source
+# Noto Sans 소스 다운로드
 download:
 	python3 scripts/download_source.py
 
-# Apply parameter modifications (metrics, axes, naming, hints)
-modify-params:
+# 베이스 폰트 빌드 (Condensed ExtraBold 정적 인스턴스)
+base:
+	python3 scripts/build_base.py
+
+# 레거시: 파라미터 수정 + 글리프 수정 + Variable Font 빌드
+build-variable:
 	python3 scripts/modify_params.py
-
-# Apply glyph modifications (shape changes + gvar sync)
-modify-glyphs:
 	python3 scripts/modify_glyphs.py
-
-# Build final CK Font files (ttf, woff2, preview copy)
-build:
 	python3 scripts/build.py
 
-# Print current font info
+# 폰트 정보 출력
 info:
-	python3 scripts/build.py --info
+	python3 -c "from scripts.build_base import print_info; from pathlib import Path; print_info(Path('build/CKSans-Base.ttf'))"
 
-# Dump glyph coordinates (A-Z by default, or specify: make dump GLYPHS="A B C")
+# 글리프 좌표 덤프 (make dump GLYPHS="A B C")
 dump:
 	python3 scripts/modify_glyphs.py --dump-all $(GLYPHS)
 
-# Validate font with fontbakery
-validate:
-	fontbakery check-universal build/CKSans-Variable.ttf
-
-# Clean build artifacts
+# 클린
 clean:
 	rm -rf build/*
+	rm -f preview/CKSans-Base.ttf preview/CKSans-Base.woff2
 	rm -f preview/CKSans-Variable.ttf preview/CKSans-Variable.woff2
-	@echo "Build artifacts cleaned."
+	@echo "Cleaned."
 
-# Full rebuild from scratch
-rebuild: clean all
+# 풀 리빌드
+rebuild: clean base

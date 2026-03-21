@@ -5,571 +5,92 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CK Sans — Preview</title>
 <style>
-  @font-face {
-    font-family: 'CK Sans';
-    src: url('./CKSans-Variable.woff2') format('woff2'),
-         url('./CKSans-Variable.ttf') format('truetype');
-    font-weight: 100 900;
-    font-stretch: 62.5% 100%;
-    font-display: swap;
-  }
+@font-face {
+  font-family: 'CK Sans';
+  src: url('./CKSans-Base.woff2') format('woff2'),
+       url('./CKSans-Base.ttf') format('truetype');
+  font-display: swap;
+}
 
-  :root {
-    --bg: #111;
-    --fg: #eee;
-    --accent: #0f0;
-    --dim: #666;
-    --panel: #1a1a1a;
-    --border: #333;
-  }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16px; }
+h1 { font-size:12px; color:#555; text-transform:uppercase; letter-spacing:.1em; margin-bottom:16px; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+.preview {
+  font-family:'CK Sans', sans-serif;
+  line-height:1.1;
+  word-break:break-all;
+  margin-bottom:24px;
+}
 
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: 'CK Sans', 'Noto Sans', system-ui, sans-serif;
-    padding: 24px;
-    min-height: 100vh;
-  }
+.controls { display:flex; flex-direction:column; gap:10px; max-width:600px; }
+.row { display:flex; align-items:center; gap:8px; }
+.row label { font-size:11px; color:#888; min-width:56px; text-transform:uppercase; }
+.row input[type=range] { flex:1; accent-color:#0f0; }
+.row .v { font-size:11px; color:#0f0; min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
+input[type=text] { background:#222; color:#eee; border:1px solid #444; padding:8px; border-radius:4px; font-size:14px; width:100%; }
+.sep { height:1px; background:#333; margin:8px 0; }
 
-  /* Header */
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 16px;
-    margin-bottom: 32px;
-  }
-  header h1 {
-    font-weight: 900;
-    font-stretch: 75%;
-    font-size: 28px;
-    letter-spacing: -0.02em;
-  }
-  header .version {
-    color: var(--dim);
-    font-size: 13px;
-    font-weight: 400;
-  }
-
-  /* Controls */
-  .controls {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 32px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-  }
-  .control-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--dim);
-    margin-bottom: 6px;
-  }
-  .control-group .value {
-    font-size: 11px;
-    color: var(--accent);
-    float: right;
-  }
-  input[type="range"] {
-    width: 100%;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-  input[type="text"], textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--fg);
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-family: 'CK Sans', system-ui, sans-serif;
-    font-size: 14px;
-  }
-  textarea {
-    resize: vertical;
-    min-height: 60px;
-  }
-  input[type="color"] {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    background: transparent;
-    padding: 2px;
-  }
-  .color-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  /* Sections */
-  section {
-    margin-bottom: 40px;
-  }
-  section h2 {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--dim);
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
-
-  /* Type tester */
-  .type-tester {
-    font-family: 'CK Sans', system-ui, sans-serif;
-    line-height: 1.1;
-    word-break: break-word;
-    transition: all 0.15s ease;
-    cursor: text;
-    outline: none;
-    padding: 8px 0;
-    border-bottom: 1px solid transparent;
-  }
-  .type-tester:focus {
-    border-bottom-color: var(--accent);
-  }
-
-  /* Waterfall */
-  .waterfall-item {
-    font-family: 'CK Sans', system-ui, sans-serif;
-    line-height: 1.2;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .waterfall-label {
-    display: inline-block;
-    width: 40px;
-    font-size: 10px;
-    color: var(--dim);
-    font-weight: 400;
-    font-stretch: 100%;
-    vertical-align: baseline;
-  }
-
-  /* Glyph grid */
-  .glyph-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-    gap: 2px;
-  }
-  .glyph-cell {
-    aspect-ratio: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    border-radius: 4px;
-    cursor: default;
-    transition: background 0.1s;
-    position: relative;
-  }
-  .glyph-cell:hover {
-    background: #252525;
-  }
-  .glyph-char {
-    font-family: 'CK Sans', system-ui, sans-serif;
-    font-size: 28px;
-    line-height: 1;
-  }
-  .glyph-label {
-    font-size: 8px;
-    color: var(--dim);
-    margin-top: 4px;
-    font-weight: 400;
-    font-stretch: 100%;
-  }
-
-  /* Paragraph */
-  .paragraph-sample {
-    font-family: 'CK Sans', system-ui, sans-serif;
-    line-height: 1.5;
-    max-width: 640px;
-  }
-
-  /* Instances */
-  .instance-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 12px;
-  }
-  .instance-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-  }
-  .instance-name {
-    font-size: 11px;
-    color: var(--dim);
-    margin-bottom: 8px;
-    font-weight: 400;
-    font-stretch: 100%;
-  }
-  .instance-sample {
-    font-family: 'CK Sans', system-ui, sans-serif;
-    font-size: 32px;
-    line-height: 1.1;
-  }
-
-  /* Comparison */
-  .compare-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 12px;
-  }
-  .compare-cell {
-    background: var(--panel);
-    border-radius: 6px;
-    padding: 16px;
-  }
-  .compare-label {
-    font-size: 10px;
-    color: var(--dim);
-    margin-bottom: 6px;
-    font-weight: 400;
-    font-stretch: 100%;
-  }
-  .compare-text {
-    font-size: 36px;
-    line-height: 1.1;
-  }
-  .compare-noto {
-    font-family: 'Noto Sans', system-ui, sans-serif;
-  }
-  .compare-ck {
-    font-family: 'CK Sans', system-ui, sans-serif;
-  }
-
-  /* Status bar */
-  .status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    padding: 8px 24px;
-    font-size: 11px;
-    color: var(--dim);
-    display: flex;
-    gap: 24px;
-  }
-  .status-bar .ok { color: var(--accent); }
-  .status-bar .err { color: #f44; }
-
-  /* Footer spacing for status bar */
-  body { padding-bottom: 48px; }
-
-  /* Dark/Light toggle */
-  .theme-toggle {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--fg);
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-
-  body.light {
-    --bg: #f5f5f5;
-    --fg: #111;
-    --accent: #0a0;
-    --dim: #888;
-    --panel: #fff;
-    --border: #ddd;
-  }
+a { color:#0f0; text-decoration:none; font-size:12px; }
+a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>CK Sans</h1>
-  <div>
-    <button class="theme-toggle" onclick="document.body.classList.toggle('light')">◐</button>
-    <span class="version" id="fontVersion">v0.1.0</span>
-  </div>
-</header>
+<h1>CK Sans — ExtraBold Condensed</h1>
 
-<!-- Controls -->
-<div class="controls">
-  <div class="control-group">
-    <label>Weight <span class="value" id="wghtVal">700</span></label>
-    <input type="range" id="wght" min="100" max="900" value="700" step="1">
-  </div>
-  <div class="control-group">
-    <label>Width <span class="value" id="wdthVal">75</span></label>
-    <input type="range" id="wdth" min="62.5" max="100" value="75" step="0.5">
-  </div>
-  <div class="control-group">
-    <label>Font Size <span class="value" id="sizeVal">72px</span></label>
-    <input type="range" id="fontSize" min="10" max="200" value="72" step="1">
-  </div>
-  <div class="control-group">
-    <label>Letter Spacing <span class="value" id="lsVal">0em</span></label>
-    <input type="range" id="letterSpacing" min="-0.1" max="0.3" value="0" step="0.005">
-  </div>
-  <div class="control-group">
-    <label>Text Color</label>
-    <div class="color-row">
-      <input type="color" id="textColor" value="#eeeeee">
-      <label>BG</label>
-      <input type="color" id="bgColor" value="#111111">
-    </div>
-  </div>
+<div class="preview" id="preview" style="font-size:72px;">
+  CONDENSED KIWI
 </div>
 
-<!-- Type Tester -->
-<section>
-  <h2>Type Tester</h2>
-  <div class="type-tester" id="typeTester" contenteditable="true" spellcheck="false">
-    Condensed Kiwi
+<div class="controls">
+  <input type="text" id="text" value="CONDENSED KIWI" placeholder="Type here...">
+  <div class="sep"></div>
+
+  <div class="row">
+    <label>Size</label>
+    <input type="range" id="size" min="16" max="200" value="72">
+    <span class="v" id="sizeV">72</span>
   </div>
-</section>
+  <div class="row">
+    <label>Spacing</label>
+    <input type="range" id="spacing" min="-20" max="40" value="0">
+    <span class="v" id="spacingV">0</span>
+  </div>
+  <div class="row">
+    <label>Leading</label>
+    <input type="range" id="leading" min="80" max="160" value="110">
+    <span class="v" id="leadingV">110</span>
+  </div>
+  <div class="row">
+    <label>Color</label>
+    <input type="range" id="bright" min="0" max="100" value="93">
+    <span class="v" id="brightV">93</span>
+  </div>
 
-<!-- Waterfall -->
-<section>
-  <h2>Waterfall</h2>
-  <div id="waterfall"></div>
-</section>
-
-<!-- Named Instances -->
-<section>
-  <h2>Named Instances</h2>
-  <div class="instance-grid" id="instances"></div>
-</section>
-
-<!-- Glyph Chart -->
-<section>
-  <h2>Glyphs — Latin Uppercase</h2>
-  <div class="glyph-grid" id="glyphUpper"></div>
-</section>
-<section>
-  <h2>Glyphs — Latin Lowercase</h2>
-  <div class="glyph-grid" id="glyphLower"></div>
-</section>
-<section>
-  <h2>Glyphs — Numerals & Punctuation</h2>
-  <div class="glyph-grid" id="glyphNum"></div>
-</section>
-
-<!-- Paragraph -->
-<section>
-  <h2>Paragraph</h2>
-  <div class="paragraph-sample" id="paragraph"></div>
-</section>
-
-<!-- Comparison (CK Sans vs Noto Sans) -->
-<section>
-  <h2>Comparison — CK Sans vs Noto Sans</h2>
-  <div id="comparison"></div>
-</section>
-
-<!-- Status Bar -->
-<div class="status-bar">
-  <span id="fontStatus">Checking font...</span>
-  <span id="axesInfo"></span>
+  <div class="sep"></div>
+  <a href="./editor.html">Open Editor →</a>
 </div>
 
 <script>
-// --- Data ---
-const INSTANCES = [
-  { name: 'CK Sans Regular', wght: 400, wdth: 75 },
-  { name: 'CK Sans ExtraBold', wght: 800, wdth: 75 },
-  { name: 'CK Sans Compressed', wght: 400, wdth: 62.5 },
-  { name: 'CK Sans Compressed ExtraBold', wght: 800, wdth: 62.5 },
-];
+const $ = id => document.getElementById(id);
+const preview = $('preview');
 
-const WATERFALL_SIZES = [72, 60, 48, 36, 28, 24, 20, 16, 14, 12];
-const WATERFALL_TEXT = 'Condensed Kiwi — The quick brown fox jumps';
-
-const COMPARE_WORDS = ['Hamburger', 'Typography', 'CONDENSED', '0123456789'];
-
-const PARAGRAPH_EN = `The Condensed Kiwi design team establishes its visual identity through bold, condensed typography. CK Sans is a custom variable typeface built on Noto Sans — modified through parameter adjustments and glyph redesign to embody CK's character: urgent, dense, geometric, modern.`;
-const PARAGRAPH_KO = `\nCondensed Kiwi 디자인 팀은 볼드하고 컨덴스드한 타이포그래피를 통해 시각적 아이덴티티를 확립합니다. CK Sans는 Noto Sans를 기반으로 파라미터 조정과 글리프 재설계를 거쳐 CK의 성격 — 긴박하고, 밀도 있고, 기하학적이고, 현대적인 — 을 구현한 커스텀 가변 서체입니다.`;
-
-// --- Elements ---
-const typeTester = document.getElementById('typeTester');
-const wghtSlider = document.getElementById('wght');
-const wdthSlider = document.getElementById('wdth');
-const sizeSlider = document.getElementById('fontSize');
-const lsSlider = document.getElementById('letterSpacing');
-const textColorPicker = document.getElementById('textColor');
-const bgColorPicker = document.getElementById('bgColor');
-
-// --- Controls ---
-function updateStyles() {
-  const wght = wghtSlider.value;
-  const wdth = wdthSlider.value;
-  const size = sizeSlider.value;
-  const ls = lsSlider.value;
-
-  document.getElementById('wghtVal').textContent = wght;
-  document.getElementById('wdthVal').textContent = wdth;
-  document.getElementById('sizeVal').textContent = size + 'px';
-  document.getElementById('lsVal').textContent = ls + 'em';
-
-  const variation = `'wght' ${wght}, 'wdth' ${wdth}`;
-
-  typeTester.style.fontVariationSettings = variation;
-  typeTester.style.fontSize = size + 'px';
-  typeTester.style.letterSpacing = ls + 'em';
-  typeTester.style.color = textColorPicker.value;
-
-  // Update glyph grid
-  document.querySelectorAll('.glyph-char').forEach(el => {
-    el.style.fontVariationSettings = variation;
-  });
+function update() {
+  preview.textContent = $('text').value || 'CK SANS';
+  preview.style.fontSize = $('size').value + 'px';
+  preview.style.letterSpacing = $('spacing').value + 'px';
+  preview.style.lineHeight = $('leading').value + '%';
+  const b = Math.round($('bright').value * 2.55);
+  preview.style.color = `rgb(${b},${b},${b})`;
 }
 
-wghtSlider.addEventListener('input', updateStyles);
-wdthSlider.addEventListener('input', updateStyles);
-sizeSlider.addEventListener('input', updateStyles);
-lsSlider.addEventListener('input', updateStyles);
-textColorPicker.addEventListener('input', () => {
-  typeTester.style.color = textColorPicker.value;
-});
-bgColorPicker.addEventListener('input', () => {
-  document.body.style.background = bgColorPicker.value;
+document.querySelectorAll('input').forEach(el => {
+  const v = $(el.id + 'V');
+  el.oninput = () => { if (v) v.textContent = el.value; update(); };
 });
 
-// --- Waterfall ---
-function renderWaterfall() {
-  const container = document.getElementById('waterfall');
-  const wght = wghtSlider.value;
-  const wdth = wdthSlider.value;
-  container.innerHTML = WATERFALL_SIZES.map(size => `
-    <div class="waterfall-item" style="font-size:${size}px; font-variation-settings:'wght' ${wght},'wdth' ${wdth}">
-      <span class="waterfall-label">${size}</span>${WATERFALL_TEXT}
-    </div>
-  `).join('');
-}
-
-// --- Instances ---
-function renderInstances() {
-  const container = document.getElementById('instances');
-  container.innerHTML = INSTANCES.map(inst => `
-    <div class="instance-card">
-      <div class="instance-name">${inst.name} — wght:${inst.wght} wdth:${inst.wdth}</div>
-      <div class="instance-sample" style="font-variation-settings:'wght' ${inst.wght},'wdth' ${inst.wdth}">
-        Condensed Kiwi
-      </div>
-    </div>
-  `).join('');
-}
-
-// --- Glyph Grid ---
-function renderGlyphs(containerId, chars) {
-  const container = document.getElementById(containerId);
-  const wght = wghtSlider.value;
-  const wdth = wdthSlider.value;
-  container.innerHTML = chars.map(ch => {
-    const code = ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
-    return `
-      <div class="glyph-cell">
-        <span class="glyph-char" style="font-variation-settings:'wght' ${wght},'wdth' ${wdth}">${ch}</span>
-        <span class="glyph-label">U+${code}</span>
-      </div>`;
-  }).join('');
-}
-
-function renderAllGlyphs() {
-  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const lower = 'abcdefghijklmnopqrstuvwxyz'.split('');
-  const nums = '0123456789.,:;!?@#$%&*()+-=/\\{}[]<>""\'\'—–'.split('');
-  renderGlyphs('glyphUpper', upper);
-  renderGlyphs('glyphLower', lower);
-  renderGlyphs('glyphNum', nums);
-}
-
-// --- Paragraph ---
-function renderParagraph() {
-  const el = document.getElementById('paragraph');
-  const wght = wghtSlider.value;
-  const wdth = wdthSlider.value;
-  el.style.fontVariationSettings = `'wght' 400, 'wdth' 87.5`;
-  el.style.fontSize = '16px';
-  el.textContent = PARAGRAPH_EN + PARAGRAPH_KO;
-}
-
-// --- Comparison ---
-function renderComparison() {
-  const container = document.getElementById('comparison');
-  const wght = wghtSlider.value;
-  const wdth = wdthSlider.value;
-  container.innerHTML = COMPARE_WORDS.map(word => `
-    <div class="compare-row">
-      <div class="compare-cell">
-        <div class="compare-label">Noto Sans</div>
-        <div class="compare-text compare-noto" style="font-weight:${wght};font-stretch:${wdth}%">${word}</div>
-      </div>
-      <div class="compare-cell">
-        <div class="compare-label">CK Sans</div>
-        <div class="compare-text compare-ck" style="font-variation-settings:'wght' ${wght},'wdth' ${wdth}">${word}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// --- Font detection ---
-function checkFont() {
-  const statusEl = document.getElementById('fontStatus');
-  const axesEl = document.getElementById('axesInfo');
-
-  // Check if CK Sans loaded by measuring width difference
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.font = '72px "CK Sans"';
-  const ckWidth = ctx.measureText('W').width;
-  ctx.font = '72px monospace';
-  const monoWidth = ctx.measureText('W').width;
-
-  if (Math.abs(ckWidth - monoWidth) > 1) {
-    statusEl.innerHTML = '<span class="ok">● CK Sans loaded</span>';
-    axesEl.textContent = 'wght: 100–900 | wdth: 62.5–100';
-  } else {
-    statusEl.innerHTML = '<span class="err">● CK Sans not loaded — place font files in preview/</span>';
-    axesEl.textContent = 'Fallback font active';
-  }
-}
-
-// Re-render on slider change
-wghtSlider.addEventListener('input', () => { renderWaterfall(); renderAllGlyphs(); renderComparison(); });
-wdthSlider.addEventListener('input', () => { renderWaterfall(); renderAllGlyphs(); renderComparison(); });
-
-// --- Init ---
-function init() {
-  updateStyles();
-  renderWaterfall();
-  renderInstances();
-  renderAllGlyphs();
-  renderParagraph();
-  renderComparison();
-
-  // Check font after a delay (allow @font-face to load)
-  setTimeout(checkFont, 1000);
-  document.fonts?.ready?.then(checkFont);
-}
-
-init();
+update();
 </script>
 </body>
 </html>

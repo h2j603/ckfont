@@ -7,37 +7,35 @@
 <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2.2/clipper.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#111; color:#eee; font-family:system-ui,sans-serif; overflow-x:hidden; }
-#canvas-wrap { width:100%; border-bottom:1px solid #333; position:relative; }
-canvas { display:block; width:100%; }
-.controls { padding:16px; display:flex; flex-direction:column; gap:10px; max-width:800px; }
-.row { display:flex; align-items:center; gap:8px; }
-.row label { font-size:11px; color:#888; min-width:72px; text-transform:uppercase; letter-spacing:.05em; }
-.row input[type=range] { flex:1; accent-color:#0f0; }
-.row .val { font-size:11px; color:#0f0; min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:#111; color:#eee; font-family:system-ui,-apple-system,sans-serif; overflow-x:hidden; }
+#cv { display:block; width:100%; border-bottom:1px solid #333; touch-action:none; }
+.panel { padding:16px; max-width:800px; }
+.row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.row label { font-size:11px; color:#888; min-width:64px; text-transform:uppercase; letter-spacing:.04em; }
+.row input[type=range] { flex:1; accent-color:#0f0; height:20px; }
+.row .v { font-size:11px; color:#0f0; min-width:32px; text-align:right; font-variant-numeric:tabular-nums; }
 select { background:#222; color:#eee; border:1px solid #444; padding:6px 8px; border-radius:4px; font-size:13px; flex:1; }
-input[type=text] { background:#222; color:#eee; border:1px solid #444; padding:6px 8px; border-radius:4px; font-size:14px; flex:1; }
-.sep { height:1px; background:#333; }
-button { background:#0f0; color:#111; border:none; padding:12px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; }
-button:active { opacity:.8; }
-.sl { font-size:10px; color:#666; text-transform:uppercase; letter-spacing:.1em; }
-#info { position:absolute; top:4px; left:6px; font:9px monospace; color:#444; }
+input[type=text] { background:#222; color:#eee; border:1px solid #444; padding:8px; border-radius:4px; font-size:15px; width:100%; }
+.sep { height:1px; background:#333; margin:12px 0; }
+.sl { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+button { background:#0f0; color:#111; border:none; padding:12px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; width:100%; margin-top:8px; }
+button:active { opacity:.7; }
+#info { font:9px/1.4 monospace; color:#444; padding:4px 8px; }
 </style>
 </head>
 <body>
-<div id="canvas-wrap">
-  <canvas id="cv"></canvas>
-  <div id="info"></div>
-</div>
-<div class="controls">
-  <div class="row">
-    <input type="text" id="previewText" value="CONDENSED KIWI">
-  </div>
+<canvas id="cv"></canvas>
+<div id="info"></div>
+<div class="panel">
+
+  <input type="text" id="text" value="CONDENSED KIWI" placeholder="Type here...">
+  <div class="sep"></div>
+
   <div class="row">
     <label>Size</label>
-    <input type="range" id="fontSize" min="20" max="200" value="80">
-    <span class="val" id="fontSizeVal">80</span>
+    <input type="range" id="size" min="24" max="240" value="80">
+    <span class="v" id="sizeV">80</span>
   </div>
 
   <div class="sep"></div>
@@ -45,20 +43,13 @@ button:active { opacity:.8; }
 
   <div class="row">
     <label>Width %</label>
-    <input type="range" id="scaleX" min="50" max="150" value="100" step="1">
-    <span class="val" id="scaleXVal">100</span>
+    <input type="range" id="sx" min="50" max="150" value="100">
+    <span class="v" id="sxV">100</span>
   </div>
   <div class="row">
     <label>Height %</label>
-    <input type="range" id="scaleY" min="50" max="150" value="100" step="1">
-    <span class="val" id="scaleYVal">100</span>
-  </div>
-  <div class="row">
-    <label>Fill counter</label>
-    <select id="fillCounter">
-      <option value="off">Off</option>
-      <option value="on">On (fill O, D, etc.)</option>
-    </select>
+    <input type="range" id="sy" min="50" max="150" value="100">
+    <span class="v" id="syV">100</span>
   </div>
 
   <div class="sep"></div>
@@ -66,46 +57,41 @@ button:active { opacity:.8; }
 
   <div class="row">
     <label>Thickness</label>
-    <input type="range" id="thickness" min="-50" max="50" value="0" step="1">
-    <span class="val" id="thicknessVal">0</span>
+    <input type="range" id="thick" min="-60" max="60" value="0">
+    <span class="v" id="thickV">0</span>
   </div>
   <div class="row">
     <label>Inline</label>
-    <input type="range" id="inlineDepth" min="0" max="80" value="0" step="1">
-    <span class="val" id="inlineDepthVal">0</span>
+    <input type="range" id="inline" min="0" max="100" value="0">
+    <span class="v" id="inlineV">0</span>
   </div>
   <div class="row">
     <label>Corner R</label>
-    <input type="range" id="cornerR" min="0" max="60" value="0" step="1">
-    <span class="val" id="cornerRVal">0</span>
+    <input type="range" id="corner" min="0" max="80" value="0">
+    <span class="v" id="cornerV">0</span>
   </div>
 
   <div class="sep"></div>
-  <div class="sl">Cut Effect</div>
+  <div class="sl">Cut</div>
 
   <div class="row">
     <label>Direction</label>
     <select id="cutDir">
       <option value="none">None</option>
-      <option value="vertical">Vertical</option>
-      <option value="horizontal">Horizontal</option>
+      <option value="v">Vertical</option>
+      <option value="h">Horizontal</option>
       <option value="grid">Grid</option>
     </select>
   </div>
   <div class="row">
-    <label>Width</label>
-    <input type="range" id="cutWidth" min="1" max="80" value="12">
-    <span class="val" id="cutWidthVal">12</span>
+    <label>Cut W</label>
+    <input type="range" id="cutW" min="1" max="80" value="12">
+    <span class="v" id="cutWV">12</span>
   </div>
   <div class="row">
     <label>Spacing</label>
-    <input type="range" id="cutSpacing" min="10" max="200" value="70">
-    <span class="val" id="cutSpacingVal">70</span>
-  </div>
-  <div class="row">
-    <label>Offset</label>
-    <input type="range" id="cutOffset" min="0" max="100" value="0">
-    <span class="val" id="cutOffsetVal">0</span>
+    <input type="range" id="cutS" min="20" max="200" value="70">
+    <span class="v" id="cutSV">70</span>
   </div>
 
   <div class="sep"></div>
@@ -113,349 +99,303 @@ button:active { opacity:.8; }
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-//  CK Sans Editor — Clean rewrite
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
+//  CK Sans Editor v2 — opentype.js 직접 로드
+// ════════════════════════════════════════════════
 
-let glyphData = null;
-
-// ─── UI Helpers ───
+let font = null;   // opentype.js Font object
+const canvas = document.getElementById('cv');
+const ctx = canvas.getContext('2d');
 
 const $ = id => document.getElementById(id);
-const val = id => +$(id).value;
+const N = id => +$(id).value;
 
-function getParams() {
-  return {
-    text:        $('previewText').value || 'A',
-    fontSize:    val('fontSize'),
-    scaleX:      val('scaleX') / 100,
-    scaleY:      val('scaleY') / 100,
-    fillCounter: $('fillCounter').value === 'on',
-    thickness:   val('thickness'),
-    inlineDepth: val('inlineDepth'),
-    cornerR:     val('cornerR'),
-    cutDir:      $('cutDir').value,
-    cutWidth:    val('cutWidth'),
-    cutSpacing:  val('cutSpacing'),
-    cutOffset:   val('cutOffset'),
-  };
-}
-
-// Sync range labels
+// ── Slider sync ──
 document.querySelectorAll('input[type=range]').forEach(el => {
-  const v = $(el.id + 'Val');
-  if (v) el.addEventListener('input', () => v.textContent = el.value);
+  const v = $(el.id + 'V');
+  if (v) el.oninput = () => { v.textContent = el.value; draw(); };
 });
+$('text').oninput = draw;
+$('cutDir').onchange = draw;
 
 
-// ═══════════════════════════════════════════
-//  Clipper Offset — 와인딩 방향 정확히 처리
-// ═══════════════════════════════════════════
-//
-//  폰트 컨투어 규칙 (TrueType):
-//    외곽(outer) = CW = 음수 signed area
-//    카운터(hole) = CCW = 양수 signed area
-//
-//  Clipper 규칙:
-//    외곽 = CCW (Orientation=true)
-//    hole = CW  (Orientation=false)
-//
-//  → 입력 시 reverse, 출력 시 reverse
+// ════════════════════════════════════════════════
+//  Clipper offset — 와인딩 반전 처리
+// ════════════════════════════════════════════════
+//  opentype.js 컨투어: 외곽=CCW, 카운터=CW (PostScript/CFF 규칙)
+//  Clipper: 외곽=CCW, hole=CW — 동일!
+//  → opentype.js 사용 시 와인딩 반전 불필요
 
-function clipperOffset(paths, dist) {
-  if (dist === 0 || !paths.length) return paths.map(p => p.map(pt => [pt[0], pt[1]]));
+const CLIP_SCALE = 100; // 소수점 정밀도 보존
 
-  const SCALE = 1; // 폰트 좌표가 이미 정수 단위이므로 스케일 불필요
+function clipperOffset(contours, dist) {
+  if (dist === 0 || !contours.length) return contours.map(c => c.map(p => ({x:p.x, y:p.y})));
+  const copy = contours.map(c => c.map(p => ({x:p.x, y:p.y})));
 
   try {
     const co = new ClipperLib.ClipperOffset();
     co.MiterLimit = 2;
-    co.ArcTolerance = 5;
+    co.ArcTolerance = 0.25 * CLIP_SCALE;
 
-    for (const poly of paths) {
-      if (poly.length < 3) continue;
-      // 폰트→Clipper: 와인딩 반전
-      const cp = [];
-      for (let i = poly.length - 1; i >= 0; i--) {
-        cp.push({ X: Math.round(poly[i][0] * SCALE), Y: Math.round(poly[i][1] * SCALE) });
-      }
+    for (const c of contours) {
+      if (c.length < 3) continue;
+      const cp = c.map(p => ({X: Math.round(p.x * CLIP_SCALE), Y: Math.round(p.y * CLIP_SCALE)}));
       co.AddPath(cp, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
     }
 
-    const solution = new ClipperLib.Paths();
-    co.Execute(solution, dist * SCALE);
+    const sol = new ClipperLib.Paths();
+    co.Execute(sol, dist * CLIP_SCALE);
 
-    if (solution.length === 0) return paths.map(p => p.map(pt => [pt[0], pt[1]]));
-
-    // Clipper→폰트: 와인딩 반전
-    const result = [];
-    for (const sp of solution) {
-      if (sp.length < 3) continue;
-      const pts = [];
-      for (let i = sp.length - 1; i >= 0; i--) {
-        pts.push([sp[i].X / SCALE, sp[i].Y / SCALE]);
-      }
-      result.push(pts);
-    }
-    return result.length > 0 ? result : paths.map(p => p.map(pt => [pt[0], pt[1]]));
+    if (!sol.length) return copy;
+    return sol.map(s => s.map(p => ({x: p.X / CLIP_SCALE, y: p.Y / CLIP_SCALE}))).filter(c => c.length >= 3);
   } catch (e) {
-    console.warn('Clipper offset failed:', e);
-    return paths.map(p => p.map(pt => [pt[0], pt[1]]));
+    console.warn('Clipper failed:', e);
+    return copy;
   }
 }
 
 
-// ═══════════════════════════════════════════
-//  Corner Rounding (Quadratic Bézier)
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
+//  opentype.js Path → contours (point arrays)
+// ════════════════════════════════════════════════
 
-function roundCorners(poly, radius) {
-  if (radius <= 0 || poly.length < 3) return poly;
-  const n = poly.length;
-  const out = [];
-  const STEPS = 5;
+function pathToContours(path) {
+  // opentype.js path.commands → [{x,y}] 배열들
+  const contours = [];
+  let cur = [];
+  const STEP = 8; // 커브 해상도
 
+  for (const cmd of path.commands) {
+    switch (cmd.type) {
+      case 'M':
+        if (cur.length >= 3) contours.push(cur);
+        cur = [{x: cmd.x, y: cmd.y}];
+        break;
+      case 'L':
+        cur.push({x: cmd.x, y: cmd.y});
+        break;
+      case 'Q': {
+        const p0 = cur[cur.length - 1];
+        for (let i = 1; i <= STEP; i++) {
+          const t = i / STEP, mt = 1 - t;
+          cur.push({
+            x: mt*mt*p0.x + 2*mt*t*cmd.x1 + t*t*cmd.x,
+            y: mt*mt*p0.y + 2*mt*t*cmd.y1 + t*t*cmd.y
+          });
+        }
+        break;
+      }
+      case 'C': {
+        const p0 = cur[cur.length - 1];
+        for (let i = 1; i <= STEP; i++) {
+          const t = i / STEP, mt = 1 - t;
+          cur.push({
+            x: mt*mt*mt*p0.x + 3*mt*mt*t*cmd.x1 + 3*mt*t*t*cmd.x2 + t*t*t*cmd.x,
+            y: mt*mt*mt*p0.y + 3*mt*mt*t*cmd.y1 + 3*mt*t*t*cmd.y2 + t*t*t*cmd.y
+          });
+        }
+        break;
+      }
+      case 'Z':
+        if (cur.length >= 3) contours.push(cur);
+        cur = [];
+        break;
+    }
+  }
+  if (cur.length >= 3) contours.push(cur);
+  return contours;
+}
+
+
+// ════════════════════════════════════════════════
+//  Corner rounding
+// ════════════════════════════════════════════════
+
+function roundCorners(pts, r) {
+  if (r <= 0 || pts.length < 3) return pts;
+  const n = pts.length, out = [];
   for (let i = 0; i < n; i++) {
-    const prev = poly[(i - 1 + n) % n];
-    const curr = poly[i];
-    const next = poly[(i + 1) % n];
-
-    const dx1 = prev[0] - curr[0], dy1 = prev[1] - curr[1];
-    const dx2 = next[0] - curr[0], dy2 = next[1] - curr[1];
-    const len1 = Math.hypot(dx1, dy1);
-    const len2 = Math.hypot(dx2, dy2);
-
-    if (len1 < 1 || len2 < 1) { out.push([curr[0], curr[1]]); continue; }
-
-    const r = Math.min(radius, len1 * 0.4, len2 * 0.4);
-    const ux1 = dx1 / len1, uy1 = dy1 / len1;
-    const ux2 = dx2 / len2, uy2 = dy2 / len2;
-    const p0 = [curr[0] + ux1 * r, curr[1] + uy1 * r];
-    const p2 = [curr[0] + ux2 * r, curr[1] + uy2 * r];
-
-    for (let s = 0; s <= STEPS; s++) {
-      const t = s / STEPS, mt = 1 - t;
-      out.push([
-        mt * mt * p0[0] + 2 * mt * t * curr[0] + t * t * p2[0],
-        mt * mt * p0[1] + 2 * mt * t * curr[1] + t * t * p2[1],
-      ]);
+    const prev = pts[(i-1+n)%n], curr = pts[i], next = pts[(i+1)%n];
+    const dx1 = prev.x-curr.x, dy1 = prev.y-curr.y;
+    const dx2 = next.x-curr.x, dy2 = next.y-curr.y;
+    const l1 = Math.hypot(dx1,dy1), l2 = Math.hypot(dx2,dy2);
+    if (l1 < 1 || l2 < 1) { out.push({x:curr.x,y:curr.y}); continue; }
+    const mr = Math.min(r, l1*.4, l2*.4);
+    const p0 = {x: curr.x+dx1/l1*mr, y: curr.y+dy1/l1*mr};
+    const p2 = {x: curr.x+dx2/l2*mr, y: curr.y+dy2/l2*mr};
+    for (let s = 0; s <= 5; s++) {
+      const t = s/5, mt = 1-t;
+      out.push({x: mt*mt*p0.x+2*mt*t*curr.x+t*t*p2.x, y: mt*mt*p0.y+2*mt*t*curr.y+t*t*p2.y});
     }
   }
   return out;
 }
 
 
-// ═══════════════════════════════════════════
-//  Polygon Clipping (Sutherland-Hodgman)
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
+//  Cut effect — polygon clipping
+// ════════════════════════════════════════════════
 
-function clipPolyAxis(poly, axis, lo, hi) {
-  // axis: 0=x, 1=y
-  let p = poly;
-  // clip >= lo
-  p = clipHalf(p, axis, lo, true);
-  // clip <= hi
-  p = clipHalf(p, axis, hi, false);
-  return p;
-}
-
-function clipHalf(poly, axis, val, keepAbove) {
-  if (poly.length < 3) return [];
+function clipHalf(pts, axis, val, keep) {
+  if (pts.length < 3) return [];
   const out = [];
-  for (let i = 0; i < poly.length; i++) {
-    const c = poly[i], n = poly[(i + 1) % poly.length];
-    const ci = keepAbove ? c[axis] >= val : c[axis] <= val;
-    const ni = keepAbove ? n[axis] >= val : n[axis] <= val;
+  const key = axis === 'x' ? 'x' : 'y';
+  for (let i = 0; i < pts.length; i++) {
+    const c = pts[i], n = pts[(i+1)%pts.length];
+    const ci = keep === 'gte' ? c[key] >= val : c[key] <= val;
+    const ni = keep === 'gte' ? n[key] >= val : n[key] <= val;
     if (ci) out.push(c);
     if (ci !== ni) {
-      const t = (val - c[axis]) / (n[axis] - c[axis]);
-      if (axis === 0) out.push([val, c[1] + t * (n[1] - c[1])]);
-      else            out.push([c[0] + t * (n[0] - c[0]), val]);
+      const t = (val - c[key]) / (n[key] - c[key]);
+      out.push({x: c.x + t*(n.x-c.x), y: c.y + t*(n.y-c.y)});
     }
   }
   return out;
 }
 
-
-// ═══════════════════════════════════════════
-//  Cut Effect
-// ═══════════════════════════════════════════
-
-function applyCuts(paths, axis, lo, hi, cutW, cutSpacing, cutOff) {
-  // Build solid strips (gaps = cuts)
+function cutStrips(contours, axis, lo, hi, cutW, cutS) {
   const strips = [];
-  let pos = lo + cutOff;
-  let solidStart = lo;
+  let pos = lo, solid = lo;
   while (pos < hi) {
-    if (pos > solidStart) strips.push([solidStart, pos]);
-    solidStart = pos + cutW;
-    pos += cutSpacing;
+    if (pos > solid) strips.push([solid, pos]);
+    solid = pos + cutW;
+    pos += cutS;
   }
-  if (solidStart < hi) strips.push([solidStart, hi]);
+  if (solid < hi) strips.push([solid, hi]);
 
   const result = [];
-  for (const path of paths) {
+  for (const c of contours) {
     for (const [a, b] of strips) {
-      const clipped = clipPolyAxis(path, axis, a, b);
-      if (clipped.length >= 3) result.push(clipped);
+      let cl = clipHalf(c, axis, a, 'gte');
+      cl = clipHalf(cl, axis, b, 'lte');
+      if (cl.length >= 3) result.push(cl);
     }
   }
   return result;
 }
 
 
-// ═══════════════════════════════════════════
-//  Glyph Processing Pipeline
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
+//  Process glyph
+// ════════════════════════════════════════════════
 
-function signedArea(poly) {
-  let a = 0;
-  for (let i = 0; i < poly.length; i++) {
-    const j = (i + 1) % poly.length;
-    a += poly[i][0] * poly[j][1] - poly[j][0] * poly[i][1];
-  }
-  return a / 2;
-}
+function processGlyph(glyph, params) {
+  const path = glyph.getPath(0, 0, params.upm); // 원본 좌표
+  let contours = pathToContours(path);
+  if (!contours.length) return {outer:[], inner:[]};
 
-function processGlyph(rawPaths, params) {
-  if (!rawPaths || !rawPaths.length) return { outer: [], inner: [] };
-
-  let paths = rawPaths.map(p => p.map(pt => [pt[0], pt[1]]));
-
-  // 1. Scale — 원점(0,0) 기준 스케일 → 커닝/어드밴스와 비례 유지
-  if (params.scaleX !== 1 || params.scaleY !== 1) {
-    paths = paths.map(p => p.map(pt => [
-      pt[0] * params.scaleX,
-      pt[1] * params.scaleY,
-    ]));
+  // Scale (원점 기준)
+  if (params.sx !== 1 || params.sy !== 1) {
+    contours = contours.map(c => c.map(p => ({x: p.x * params.sx, y: p.y * params.sy})));
   }
 
-  // 2. Fill counter — 카운터(내부 공간) 제거, 가장 큰 외곽만 유지
-  if (params.fillCounter && paths.length > 1) {
-    const sorted = paths
-      .map(p => ({ p, area: Math.abs(signedArea(p)) }))
-      .sort((a, b) => b.area - a.area);
-    paths = [sorted[0].p];
-  }
+  // Thickness
+  if (params.thick !== 0) contours = clipperOffset(contours, params.thick);
 
-  // 3. Thickness — Clipper offset으로 두께 조절
-  if (params.thickness !== 0) {
-    paths = clipperOffset(paths, params.thickness);
-  }
+  // Corner R
+  if (params.corner > 0) contours = contours.map(c => roundCorners(c, params.corner));
 
-  // 4. Corner rounding
-  if (params.cornerR > 0) {
-    paths = paths.map(p => roundCorners(p, params.cornerR));
-  }
+  // Inline
+  let inner = [];
+  if (params.inline > 0) inner = clipperOffset(contours, -params.inline);
 
-  // 5. Inline — 안쪽으로 inset하여 hollow 효과
-  let insetPaths = [];
-  if (params.inlineDepth > 0) {
-    insetPaths = clipperOffset(paths, -params.inlineDepth);
-  }
+  // Cuts
+  if (params.cutDir !== 'none' && contours.length) {
+    const all = contours.flat();
+    const xs = all.map(p => p.x), ys = all.map(p => p.y);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
 
-  // 6. Cuts
-  if (params.cutDir !== 'none') {
-    const allPts = paths.flat();
-    if (allPts.length > 0) {
-      const xs = allPts.map(p => p[0]), ys = allPts.map(p => p[1]);
-      const xMin = Math.min(...xs), xMax = Math.max(...xs);
-      const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    if (params.cutDir === 'v' || params.cutDir === 'grid')
+      contours = cutStrips(contours, 'x', xMin, xMax, params.cutW, params.cutS);
+    if (params.cutDir === 'h' || params.cutDir === 'grid')
+      contours = cutStrips(contours, 'y', yMin, yMax, params.cutW, params.cutS);
 
-      if (params.cutDir === 'vertical' || params.cutDir === 'grid') {
-        paths = applyCuts(paths, 0, xMin, xMax, params.cutWidth, params.cutSpacing, params.cutOffset);
-        if (insetPaths.length) insetPaths = applyCuts(insetPaths, 0, xMin, xMax, params.cutWidth, params.cutSpacing, params.cutOffset);
-      }
-      if (params.cutDir === 'horizontal' || params.cutDir === 'grid') {
-        paths = applyCuts(paths, 1, yMin, yMax, params.cutWidth, params.cutSpacing, params.cutOffset);
-        if (insetPaths.length) insetPaths = applyCuts(insetPaths, 1, yMin, yMax, params.cutWidth, params.cutSpacing, params.cutOffset);
-      }
+    if (inner.length) {
+      if (params.cutDir === 'v' || params.cutDir === 'grid')
+        inner = cutStrips(inner, 'x', xMin, xMax, params.cutW, params.cutS);
+      if (params.cutDir === 'h' || params.cutDir === 'grid')
+        inner = cutStrips(inner, 'y', yMin, yMax, params.cutW, params.cutS);
     }
   }
 
-  return { outer: paths, inner: insetPaths };
+  return {outer: contours, inner};
 }
 
 
-// ═══════════════════════════════════════════
-//  Canvas Rendering
-// ═══════════════════════════════════════════
-
-const canvas = $('cv');
-const ctx = canvas.getContext('2d');
+// ════════════════════════════════════════════════
+//  Render
+// ════════════════════════════════════════════════
 
 function resize() {
   const w = Math.min(window.innerWidth, 800);
-  const h = Math.round(w * 0.55);
-  const dpr = window.devicePixelRatio || 1;
+  const h = Math.round(w * 0.5);
+  const dpr = window.devicePixelRatio || 2;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return {w, h};
 }
 
 function drawContours(contours) {
   for (const c of contours) {
     if (c.length < 3) continue;
-    ctx.moveTo(c[0][0], c[0][1]);
-    for (let i = 1; i < c.length; i++) ctx.lineTo(c[i][0], c[i][1]);
+    ctx.moveTo(c[0].x, c[0].y);
+    for (let i = 1; i < c.length; i++) ctx.lineTo(c[i].x, c[i].y);
     ctx.closePath();
   }
 }
 
-function render() {
-  if (!glyphData) {
-    resize();
-    const w = canvas.width / (window.devicePixelRatio || 1);
-    const h = canvas.height / (window.devicePixelRatio || 1);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#555';
-    ctx.font = '12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Loading...', w / 2, h / 2);
-    requestAnimationFrame(render);
-    return;
-  }
-
-  resize();
-  const w = canvas.width / (window.devicePixelRatio || 1);
-  const h = canvas.height / (window.devicePixelRatio || 1);
-
+function draw() {
+  const {w, h} = resize();
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, w, h);
 
-  const params = getParams();
-  const inst = glyphData.instances['extrabold'];
-  if (!inst) { requestAnimationFrame(render); return; }
+  if (!font) {
+    ctx.fillStyle = '#555';
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loading CKSans-Base...', w/2, h/2);
+    return;
+  }
 
-  const meta = glyphData.meta;
-  const scale = params.fontSize / meta.unitsPerEm;
+  const text = $('text').value || 'A';
+  const size = N('size');
+  const upm = font.unitsPerEm;
+  const scale = size / upm;
   const baseline = h * 0.72;
 
-  let cursorX = 20;
+  const params = {
+    upm,
+    sx: N('sx') / 100,
+    sy: N('sy') / 100,
+    thick: N('thick'),
+    inline: N('inline'),
+    corner: N('corner'),
+    cutDir: $('cutDir').value,
+    cutW: N('cutW'),
+    cutS: N('cutS'),
+  };
 
-  for (const ch of params.text) {
-    const glyph = inst.glyphs[ch];
+  let cursorX = 16;
 
-    if (!glyph) {
-      // 없는 글리프 → 빈 칸
-      cursorX += params.fontSize * 0.3;
+  for (const ch of text) {
+    const glyph = font.charToGlyph(ch);
+    if (!glyph || glyph.index === 0) {
+      cursorX += size * 0.3;
       continue;
     }
 
-    // 패스가 없는 글리프 (공백 등) → 어드밴스만 진행
-    if (!glyph.p || glyph.p.length === 0) {
-      cursorX += glyph.a * params.scaleX * scale;
-      continue;
-    }
+    const aw = (glyph.advanceWidth || upm * 0.5) * params.sx * scale;
 
-    const { outer, inner } = processGlyph(glyph.p, params);
+    const {outer, inner} = processGlyph(glyph, params);
+    if (!outer.length) { cursorX += aw; continue; }
 
     ctx.save();
     ctx.translate(cursorX, baseline);
-    ctx.scale(scale, -scale); // 폰트 Y축 반전
+    ctx.scale(scale, scale); // opentype.js는 이미 Y가 아래로 양수
 
     ctx.beginPath();
     drawContours(outer);
@@ -464,84 +404,87 @@ function render() {
     ctx.fill('evenodd');
 
     ctx.restore();
-
-    cursorX += glyph.a * params.scaleX * scale;
+    cursorX += aw;
   }
 
-  // Info bar
-  $('info').textContent = `${inst.name} | w:${Math.round(params.scaleX*100)}% h:${Math.round(params.scaleY*100)}% thick:${params.thickness} inline:${params.inlineDepth} r:${params.cornerR}`;
-
-  requestAnimationFrame(render);
+  // Info
+  $('info').textContent = `CK Sans Base | ${font.numGlyphs} glyphs | size:${size} w:${params.sx*100|0}% h:${params.sy*100|0}% thick:${params.thick} inline:${params.inline} r:${params.corner}`;
 }
 
 
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
 //  Export
-// ═══════════════════════════════════════════
+// ════════════════════════════════════════════════
 
-$('exportBtn').addEventListener('click', () => {
-  if (!glyphData) return;
-  const params = getParams();
-  const inst = glyphData.instances['extrabold'];
-  if (!inst) return;
-  const meta = glyphData.meta;
+$('exportBtn').onclick = () => {
+  if (!font) return;
 
-  const notdef = new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 650, path: new opentype.Path() });
-  const space  = new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: Math.round(meta.unitsPerEm * 0.25), path: new opentype.Path() });
+  const params = {
+    upm: font.unitsPerEm,
+    sx: N('sx') / 100,
+    sy: N('sy') / 100,
+    thick: N('thick'),
+    inline: N('inline'),
+    corner: N('corner'),
+    cutDir: $('cutDir').value,
+    cutW: N('cutW'),
+    cutS: N('cutS'),
+  };
+
+  const notdef = new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:650, path:new opentype.Path()});
+  const space = new opentype.Glyph({name:'space', unicode:32, advanceWidth:Math.round(font.unitsPerEm*0.25), path:new opentype.Path()});
   const glyphs = [notdef, space];
 
-  for (const [ch, g] of Object.entries(inst.glyphs)) {
-    if (g.u === 32 || g.u === 0) continue;
-    if (!g.p || g.p.length === 0) continue;
+  for (let i = 0; i < font.glyphs.length; i++) {
+    const g = font.glyphs.get(i);
+    if (!g.unicode || g.unicode <= 32) continue;
 
-    const { outer, inner } = processGlyph(g.p, params);
+    const {outer, inner} = processGlyph(g, params);
     const path = new opentype.Path();
 
-    for (const contour of outer) {
-      if (contour.length < 3) continue;
-      path.moveTo(contour[0][0], contour[0][1]);
-      for (let i = 1; i < contour.length; i++) path.lineTo(contour[i][0], contour[i][1]);
+    for (const c of outer) {
+      if (c.length < 3) continue;
+      path.moveTo(c[0].x, c[0].y);
+      for (let j = 1; j < c.length; j++) path.lineTo(c[j].x, c[j].y);
+      path.close();
+    }
+    for (const c of inner) {
+      if (c.length < 3) continue;
+      const rev = [...c].reverse();
+      path.moveTo(rev[0].x, rev[0].y);
+      for (let j = 1; j < rev.length; j++) path.lineTo(rev[j].x, rev[j].y);
       path.close();
     }
 
-    // Inner (reversed winding for CFF non-zero rule)
-    for (const contour of inner) {
-      if (contour.length < 3) continue;
-      const rev = [...contour].reverse();
-      path.moveTo(rev[0][0], rev[0][1]);
-      for (let i = 1; i < rev.length; i++) path.lineTo(rev[i][0], rev[i][1]);
-      path.close();
-    }
-
-    const aw = Math.round(g.a * params.scaleX);
-    glyphs.push(new opentype.Glyph({ name: g.n, unicode: g.u, advanceWidth: aw, path }));
+    const aw = Math.round((g.advanceWidth || 500) * params.sx);
+    glyphs.push(new opentype.Glyph({name: g.name, unicode: g.unicode, advanceWidth: aw, path}));
   }
 
-  let styleName = inst.name.replace('CK Sans ', '');
-  if (params.cutDir !== 'none') styleName += ' Inline';
+  let style = 'ExtraBold';
+  if (params.cutDir !== 'none') style += ' Cut';
+  if (params.inline > 0) style += ' Inline';
 
-  const font = new opentype.Font({
-    familyName: 'CK Sans',
-    styleName,
-    unitsPerEm: meta.unitsPerEm,
-    ascender: meta.ascender,
-    descender: meta.descender,
-    glyphs,
+  const expFont = new opentype.Font({
+    familyName: 'CK Sans', styleName: style,
+    unitsPerEm: font.unitsPerEm, ascender: font.ascender, descender: font.descender,
+    glyphs
   });
-  font.download('CKSans-' + styleName.replace(/\s+/g, '') + '.otf');
+  expFont.download('CKSans-' + style.replace(/\s+/g,'') + '.otf');
+};
+
+
+// ════════════════════════════════════════════════
+//  Load font — opentype.js로 TTF 직접 파싱
+// ════════════════════════════════════════════════
+
+opentype.load('./CKSans-Base.ttf', (err, f) => {
+  if (err) { console.error('Font load failed:', err); return; }
+  font = f;
+  console.log(`Loaded: ${f.names.fontFamily?.en} — ${f.numGlyphs} glyphs`);
+  draw();
 });
 
-
-// ═══════════════════════════════════════════
-//  Init
-// ═══════════════════════════════════════════
-
-fetch('./glyphs.json')
-  .then(r => r.json())
-  .then(d => { glyphData = d; })
-  .catch(e => console.error('Failed to load glyphs.json:', e));
-
-requestAnimationFrame(render);
+window.onresize = draw;
 </script>
 </body>
 </html>
