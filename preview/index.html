@@ -6,63 +6,27 @@
 <title>CK Sans — Preview</title>
 <style>
 @font-face {
-  font-family: 'CK Sans';
-  src: url('./CKSans-Base.woff2') format('woff2'),
-       url('./CKSans-Base.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
   font-family: 'CK Sans Cut';
   src: url('./CKSans-Cut.woff2') format('woff2'),
        url('./CKSans-Cut.ttf') format('truetype');
   font-display: swap;
 }
 @font-face {
-  font-family: 'CK Sans Regular';
-  src: url('./CKSans-Regular.woff2') format('woff2'),
-       url('./CKSans-Regular.ttf') format('truetype');
+  font-family: 'CK Sans Cut KR';
+  src: url('./CKSans-Cut-KR.woff2') format('woff2'),
+       url('./CKSans-Cut-KR.ttf') format('truetype');
   font-display: swap;
 }
 @font-face {
-  font-family: 'CK Sans Cut Regular';
-  src: url('./CKSans-Cut-Regular.woff2') format('woff2'),
-       url('./CKSans-Cut-Regular.ttf') format('truetype');
+  font-family: 'CK Sans Cut JP';
+  src: url('./CKSans-Cut-JP.woff2') format('woff2'),
+       url('./CKSans-Cut-JP.ttf') format('truetype');
   font-display: swap;
 }
 @font-face {
-  font-family: 'CK Sans Cut KR EB';
-  src: url('./CKSans-Cut-KR-ExtraBold.woff2') format('woff2'),
-       url('./CKSans-Cut-KR-ExtraBold.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'CK Sans Cut KR Reg';
-  src: url('./CKSans-Cut-KR-Regular.woff2') format('woff2'),
-       url('./CKSans-Cut-KR-Regular.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'CK Sans Cut JP EB';
-  src: url('./CKSans-Cut-JP-ExtraBold.woff2') format('woff2'),
-       url('./CKSans-Cut-JP-ExtraBold.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'CK Sans Cut JP Reg';
-  src: url('./CKSans-Cut-JP-Regular.woff2') format('woff2'),
-       url('./CKSans-Cut-JP-Regular.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'CK Sans Cut SC EB';
-  src: url('./CKSans-Cut-SC-ExtraBold.woff2') format('woff2'),
-       url('./CKSans-Cut-SC-ExtraBold.ttf') format('truetype');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'CK Sans Cut SC Reg';
-  src: url('./CKSans-Cut-SC-Regular.woff2') format('woff2'),
-       url('./CKSans-Cut-SC-Regular.ttf') format('truetype');
+  font-family: 'CK Sans Cut SC';
+  src: url('./CKSans-Cut-SC.woff2') format('woff2'),
+       url('./CKSans-Cut-SC.ttf') format('truetype');
   font-display: swap;
 }
 
@@ -71,7 +35,6 @@ body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16
 h1 { font-size:12px; color:#555; text-transform:uppercase; letter-spacing:.1em; margin-bottom:16px; }
 
 .preview {
-  font-family:'CK Sans', sans-serif;
   line-height:1.1;
   word-break:break-all;
   margin-bottom:24px;
@@ -91,63 +54,27 @@ a:hover { text-decoration:underline; }
 </head>
 <body>
 
-<h1>CK Sans — ExtraBold Condensed</h1>
+<h1>CK Sans — Latin</h1>
 
-<div class="preview" id="preview" style="font-size:72px;">
+<div class="preview" id="previewLatin" style="font-size:72px; font-family:'CK Sans Cut',sans-serif;">
   CONDENSED KIWI
 </div>
 
-<h1 style="margin-top:32px;">CK Sans Regular</h1>
+<h1 style="margin-top:32px;">CK Sans — Korean</h1>
 
-<div class="preview" id="previewReg" style="font-size:72px; font-family:'CK Sans Regular',sans-serif;">
-  CONDENSED KIWI
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut — ExtraBold</h1>
-
-<div class="preview" id="previewCut" style="font-size:72px; font-family:'CK Sans Cut',sans-serif;">
-  CONDENSED KIWI
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut — Regular</h1>
-
-<div class="preview" id="previewCutReg" style="font-size:72px; font-family:'CK Sans Cut Regular',sans-serif;">
-  CONDENSED KIWI
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut KR — ExtraBold</h1>
-
-<div class="preview" id="previewCutKR" style="font-size:72px; font-family:'CK Sans Cut KR EB',sans-serif;">
+<div class="preview" id="previewKR" style="font-size:72px; font-family:'CK Sans Cut KR',sans-serif;">
   응축된 키위 디자인
 </div>
 
-<h1 style="margin-top:32px;">CK Sans Cut KR — Regular</h1>
+<h1 style="margin-top:32px;">CK Sans — Japanese</h1>
 
-<div class="preview" id="previewCutKRReg" style="font-size:72px; font-family:'CK Sans Cut KR Reg',sans-serif;">
-  응축된 키위 디자인
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut JP — ExtraBold</h1>
-
-<div class="preview" id="previewCutJP" style="font-size:72px; font-family:'CK Sans Cut JP EB',sans-serif;">
+<div class="preview" id="previewJP" style="font-size:72px; font-family:'CK Sans Cut JP',sans-serif;">
   凝縮されたキウイ
 </div>
 
-<h1 style="margin-top:32px;">CK Sans Cut JP — Regular</h1>
+<h1 style="margin-top:32px;">CK Sans — Chinese</h1>
 
-<div class="preview" id="previewCutJPReg" style="font-size:72px; font-family:'CK Sans Cut JP Reg',sans-serif;">
-  凝縮されたキウイ
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut SC — ExtraBold</h1>
-
-<div class="preview" id="previewCutSC" style="font-size:72px; font-family:'CK Sans Cut SC EB',sans-serif;">
-  浓缩奇异果设计
-</div>
-
-<h1 style="margin-top:32px;">CK Sans Cut SC — Regular</h1>
-
-<div class="preview" id="previewCutSCReg" style="font-size:72px; font-family:'CK Sans Cut SC Reg',sans-serif;">
+<div class="preview" id="previewSC" style="font-size:72px; font-family:'CK Sans Cut SC',sans-serif;">
   浓缩奇异果设计
 </div>
 
@@ -182,7 +109,6 @@ a:hover { text-decoration:underline; }
 
 <script>
 const $ = id => document.getElementById(id);
-const preview = $('preview');
 
 function update() {
   const txt = $('text').value || 'CK SANS';
@@ -191,12 +117,10 @@ function update() {
   const lh = $('leading').value + '%';
   const b = Math.round($('bright').value * 2.55);
   const clr = `rgb(${b},${b},${b})`;
-  [preview, $('previewReg'), $('previewCut'), $('previewCutReg'),
-   $('previewCutKR'), $('previewCutKRReg'),
-   $('previewCutJP'), $('previewCutJPReg'),
-   $('previewCutSC'), $('previewCutSCReg')].forEach(el => {
+  const cjk = new Set(['previewKR','previewJP','previewSC']);
+  [$('previewLatin'), $('previewKR'), $('previewJP'), $('previewSC')].forEach(el => {
     if (!el) return;
-    el.textContent = txt;
+    if (!cjk.has(el.id)) el.textContent = txt;
     el.style.fontSize = sz;
     el.style.letterSpacing = ls;
     el.style.lineHeight = lh;
