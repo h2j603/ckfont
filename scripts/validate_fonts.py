@@ -50,6 +50,7 @@ class FontValidator:
             self.error(name, f"파일 로드 실패: {e}")
             return
 
+        self._check_sfnt_version(font, name)
         self._check_tables(font, name)
         self._check_maxp(font, name)
         self._check_glyphs(font, name)
@@ -58,6 +59,29 @@ class FontValidator:
         self._check_cmap(font, name)
 
         font.close()
+
+    def _check_sfnt_version(self, font, name):
+        """sfntVersion과 실제 테이블의 일관성 (Safari 호환성 핵심)."""
+        has_glyf = "glyf" in font
+        has_cff = "CFF " in font or "CFF2" in font
+        ver = font.sfntVersion
+
+        if has_glyf and not has_cff:
+            # TrueType 폰트 → sfntVersion은 \x00\x01\x00\x00 이어야 함
+            if ver != "\x00\x01\x00\x00":
+                self.error(
+                    name,
+                    f"sfntVersion={repr(ver)} 이지만 glyf 테이블 포함 "
+                    f"(TrueType은 '\\x00\\x01\\x00\\x00' 이어야 함) — Safari 로드 실패 원인",
+                )
+            else:
+                self.ok()
+        elif has_cff and not has_glyf:
+            # CFF 폰트 → sfntVersion은 OTTO 이어야 함
+            if ver != "OTTO":
+                self.error(name, f"sfntVersion={repr(ver)} 이지만 CFF 테이블 포함 (OTTO여야 함)")
+            else:
+                self.ok()
 
     def _check_tables(self, font, name):
         """glyf/CFF 테이블 일관성."""
