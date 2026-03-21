@@ -7,9 +7,10 @@ all: base
 download:
 	python3 scripts/download_source.py
 
-# 베이스 폰트 빌드 (Condensed ExtraBold 정적 인스턴스)
+# 베이스 폰트 빌드 (인스턴싱 → 터미널 라운딩 → WOFF2)
 base:
 	python3 scripts/build_base.py
+	python3 scripts/round_terminals.py
 
 # 레거시: 파라미터 수정 + 글리프 수정 + Variable Font 빌드
 build-variable:
