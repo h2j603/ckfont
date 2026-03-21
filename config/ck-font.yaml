@@ -1,0 +1,93 @@
+# CK Font Configuration
+# Noto Sans Variable Font 기반 CK 커스텀 폰트 파라미터 정의
+
+meta:
+  family_name: "CK Sans"
+  version: "0.1.0"
+  description: "Condensed Kiwi custom typeface based on Noto Sans"
+  designer: "Condensed Kiwi"
+  license: "SIL Open Font License 1.1"
+  license_url: "https://openfontlicense.org"
+
+# 소스 폰트 설정
+source:
+  font: "NotoSans"
+  # Noto Sans Variable Font GitHub 릴리즈
+  url: "https://github.com/notofonts/latin-greek-cyrillic/releases"
+  format: "variable-ttf"
+
+# Variable Font 축 설정
+axes:
+  # Weight 축: CK는 Bold(700) 이상을 주력으로 사용
+  wght:
+    min: 100
+    max: 900
+    default: 700  # CK 기본값: Bold
+
+  # Width 축: CK는 Condensed(75) 영역을 주력으로 사용
+  wdth:
+    min: 62.5
+    max: 100
+    default: 75   # CK 기본값: Condensed
+
+# Named Instance (자주 쓰는 조합을 프리셋으로 정의)
+instances:
+  - name: "CK Sans Condensed Bold"
+    coordinates:
+      wght: 700
+      wdth: 75
+
+  - name: "CK Sans Condensed ExtraBold"
+    coordinates:
+      wght: 800
+      wdth: 75
+
+  - name: "CK Sans Condensed Black"
+    coordinates:
+      wght: 900
+      wdth: 75
+
+  - name: "CK Sans Compressed Bold"
+    coordinates:
+      wght: 700
+      wdth: 62.5
+
+  - name: "CK Sans Regular"
+    coordinates:
+      wght: 400
+      wdth: 87.5
+
+# 타이포그래피 메트릭 수정
+metrics:
+  # 행간 조정 (Noto Sans 대비)
+  line_gap_adjust: 0       # 추후 조정
+  ascender_adjust: 0       # 추후 조정
+  descender_adjust: 0      # 추후 조정
+
+  # 자간 조정
+  tracking_adjust: 0       # 추후 글로벌 자간 조정
+
+# 글리프 수정 목록
+# 각 항목은 개별 글리프의 형태 수정을 정의
+# 실제 수정은 사용자와 논의 후 구체화
+glyph_modifications: []
+  # 예시 형식:
+  # - glyph: "A"
+  #   unicode: 0x0041
+  #   type: "geometric"        # geometric | organic | custom
+  #   description: "상단 꼭짓점 각도 조정"
+  #   operations:
+  #     - action: "move_point"
+  #       contour: 0
+  #       point: 2
+  #       dx: 0
+  #       dy: 10
+
+# 빌드 출력 설정
+output:
+  directory: "build"
+  formats:
+    - ttf          # TrueType (웹/앱 범용)
+    - woff2        # Web 최적화
+  variable: true   # Variable Font로 빌드
+  static: false    # Static instance 별도 빌드 여부
