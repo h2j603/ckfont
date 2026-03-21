@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CK Sans — Inline Cut Test</title>
+<style>
+  @font-face {
+    font-family: 'CK Inline Test';
+    src: url('./CKSans-InlineTest.woff2') format('woff2'),
+         url('./CKSans-InlineTest.ttf') format('truetype');
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'CK Sans';
+    src: url('./CKSans-Variable.woff2') format('woff2'),
+         url('./CKSans-Variable.ttf') format('truetype');
+    font-display: swap;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    padding: 24px;
+  }
+  h1 { font-size: 16px; color: #666; margin-bottom: 24px; }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .panel {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .panel-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+  .sample-original {
+    font-family: 'CK Sans', system-ui;
+    font-variation-settings: 'wght' 800, 'wdth' 75;
+  }
+  .sample-inline {
+    font-family: 'CK Inline Test', system-ui;
+  }
+  .size-72 { font-size: 72px; line-height: 1.1; }
+  .size-96 { font-size: 96px; line-height: 1.1; }
+  .size-120 { font-size: 120px; line-height: 1.1; }
+  .size-48 { font-size: 48px; line-height: 1.2; }
+  .note {
+    color: #0f0;
+    font-size: 12px;
+    margin-top: 32px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<h1>CK SANS — VERTICAL INLINE CUT TEST (H only)</h1>
+
+<div class="compare">
+  <div class="panel">
+    <div class="panel-label">Original (ExtraBold Condensed)</div>
+    <div class="sample-original size-120">H</div>
+  </div>
+  <div class="panel">
+    <div class="panel-label">Inline Cut (vertical)</div>
+    <div class="sample-inline size-120">H</div>
+  </div>
+</div>
+
+<div class="compare">
+  <div class="panel">
+    <div class="panel-label">Original — Word context</div>
+    <div class="sample-original size-72">HELLO HYUK</div>
+  </div>
+  <div class="panel">
+    <div class="panel-label">Inline — Word context (H only affected)</div>
+    <div class="sample-inline size-72">HELLO HYUK</div>
+  </div>
+</div>
+
+<div class="compare">
+  <div class="panel">
+    <div class="panel-label">Original — Mixed sizes</div>
+    <div class="sample-original size-96">HH</div>
+    <div class="sample-original size-72">HH</div>
+    <div class="sample-original size-48">HH</div>
+  </div>
+  <div class="panel">
+    <div class="panel-label">Inline — Mixed sizes</div>
+    <div class="sample-inline size-96">HH</div>
+    <div class="sample-inline size-72">HH</div>
+    <div class="sample-inline size-48">HH</div>
+  </div>
+</div>
+
+<p class="note">
+  cut_width=18 | cut_spacing=55 | 9 cuts on H<br>
+  Only 'H' has inline cuts. Other glyphs are unmodified.
+</p>
+
+</body>
+</html>
