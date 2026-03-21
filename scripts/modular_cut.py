@@ -47,114 +47,166 @@ SKIP_GLYPHS = {"i", "l", ".", ",", "'", '"', "-", "_", " "}
 
 # 최소 모듈 크기 (이보다 작으면 무시)
 MIN_MODULE_W = 10
-MIN_MODULE_H = 40  # 너무 짧은 바 제거 (캡슐 r*2 이상은 되어야)
+MIN_MODULE_H = 25  # 짧은 건 정원(원)으로 표현하므로 낮게
+
+
+def circle_path(cx, cy, r):
+    """정원 (완전한 원) pathops.Path 생성."""
+    # cubic Bézier로 원 근사 (4개 세그먼트)
+    k = r * 0.5522847498  # 4/3 * (sqrt(2) - 1)
+    path = pathops.Path()
+    pen = path.getPen()
+    pen.moveTo((cx + r, cy))
+    pen.curveTo((cx + r, cy + k), (cx + k, cy + r), (cx, cy + r))
+    pen.curveTo((cx - k, cy + r), (cx - r, cy + k), (cx - r, cy))
+    pen.curveTo((cx - r, cy - k), (cx - k, cy - r), (cx, cy - r))
+    pen.curveTo((cx + k, cy - r), (cx + r, cy - k), (cx + r, cy))
+    pen.closePath()
+    return path
 
 
 def rounded_rect_path(x0, y0, x1, y1, r):
-    """둥근 사각형을 pathops.Path로 생성.
+    """둥근 사각형 또는 정원을 pathops.Path로 생성.
 
-    TrueType quadratic Bézier로 코너를 근사.
-    코너 하나당 off-curve 1개 + on-curve 2개.
+    높이 <= 너비 → 정원 (완전한 원)
+    높이 > 너비 → 캡슐형 둥근 사각형
     """
     w = x1 - x0
     h = y1 - y0
-    # 코너 반지름이 사이즈의 절반을 넘지 않게
+
+    # 높이가 너비 이하 → 정원으로
+    if h <= w:
+        cr = h / 2
+        return circle_path((x0 + x1) / 2, (y0 + y1) / 2, cr)
+
+    # 캡슐형
     r = min(r, w / 2, h / 2)
 
     path = pathops.Path()
     pen = path.getPen()
 
-    # CW (clockwise) 방향으로 그리기 — TrueType 외곽 기준
-    # 시작: 하단 왼쪽 코너의 직선 시작점
     pen.moveTo((x0, y0 + r))
-
-    # 좌측 상행
     pen.lineTo((x0, y1 - r))
-    # 좌상 코너 (quadratic: 코너점이 control point)
     pen.qCurveTo((x0, y1), (x0 + r, y1))
-
-    # 상단 우행
     pen.lineTo((x1 - r, y1))
-    # 우상 코너
     pen.qCurveTo((x1, y1), (x1, y1 - r))
-
-    # 우측 하행
     pen.lineTo((x1, y0 + r))
-    # 우하 코너
     pen.qCurveTo((x1, y0), (x1 - r, y0))
-
-    # 하단 좌행
     pen.lineTo((x0 + r, y0))
-    # 좌하 코너
     pen.qCurveTo((x0, y0), (x0, y0 + r))
 
     pen.closePath()
     return path
 
 
+def scanline_spans(glyph_path, x):
+    """수직 스캔라인: x 위치에서 글리프의 채워진 y 구간 반환.
+
+    even-odd 규칙으로 안/밖 판별 → D, O 등 카운터 정확히 처리.
+    """
+    # pathops Path에서 세그먼트 추출
+    rec = RecordingPen()
+    glyph_path.draw(rec)
+
+    # 모든 직선 세그먼트로 변환 (곡선은 세분화)
+    edges = []
+    cur = None
+    for op_name, args in rec.value:
+        if op_name == "moveTo":
+            cur = args[0]
+        elif op_name == "lineTo":
+            if cur is not None:
+                edges.append((cur, args[0]))
+            cur = args[0]
+        elif op_name == "curveTo":
+            # cubic → 직선 세분화
+            if cur is not None:
+                p0 = cur
+                steps = 8
+                for s in range(1, steps + 1):
+                    t = s / steps
+                    mt = 1 - t
+                    px = mt**3*p0[0] + 3*mt**2*t*args[0][0] + 3*mt*t**2*args[1][0] + t**3*args[2][0]
+                    py = mt**3*p0[1] + 3*mt**2*t*args[0][1] + 3*mt*t**2*args[1][1] + t**3*args[2][1]
+                    edges.append((cur, (px, py)))
+                    cur = (px, py)
+            cur = args[-1]
+        elif op_name == "qCurveTo":
+            if cur is not None:
+                p0 = cur
+                steps = 8
+                for s in range(1, steps + 1):
+                    t = s / steps
+                    mt = 1 - t
+                    px = mt**2*p0[0] + 2*mt*t*args[0][0] + t**2*args[1][0]
+                    py = mt**2*p0[1] + 2*mt*t*args[0][1] + t**2*args[1][1]
+                    edges.append((cur, (px, py)))
+                    cur = (px, py)
+            cur = args[-1]
+        elif op_name == "closePath":
+            cur = None
+
+    # x 위치에서 교차하는 y 값 수집
+    hits = []
+    for (ax, ay), (bx, by) in edges:
+        if (ax <= x < bx) or (bx <= x < ax):
+            t = (x - ax) / (bx - ax)
+            hits.append(ay + t * (by - ay))
+
+    hits.sort()
+
+    # even-odd 페어링
+    spans = []
+    for i in range(0, len(hits) - 1, 2):
+        spans.append((hits[i], hits[i + 1]))
+    return spans
+
+
 def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
     """글리프에서 모듈 bbox 목록 추출.
 
-    세로 컬럼 그리드와 교차시켜 존재하는 영역의 bbox를 반환.
+    스캔라인 방식: 컬럼 내 여러 x에서 수직 스캔 → 채워진 y 구간 → 모듈.
+    카운터(D, O 등 내부 구멍)를 정확히 처리.
     """
     pitch = module_w + gap
-    advance_w, lsb = hmtx_entry
-
-    # 글리프 경계
-    y_lo = glyph_obj.yMin - 10
-    y_hi = glyph_obj.yMax + 10
-
-    modules = []
 
     # 글리프 중심 기준으로 그리드 정렬
     glyph_cx = (glyph_obj.xMin + glyph_obj.xMax) / 2
     glyph_w = glyph_obj.xMax - glyph_obj.xMin
 
-    # 필요한 컬럼 수 계산, 중앙 정렬
     n_cols = max(1, int(round(glyph_w / pitch)))
     total_grid_w = n_cols * module_w + (n_cols - 1) * gap
     grid_start = glyph_cx - total_grid_w / 2
 
+    modules = []
+
     for ci in range(n_cols):
         col_x = grid_start + ci * pitch
 
-        # 이 컬럼의 직사각형 (높이는 넉넉하게)
-        col = pathops.Path()
-        pen = col.getPen()
-        pen.moveTo((col_x, y_lo))
-        pen.lineTo((col_x + module_w, y_lo))
-        pen.lineTo((col_x + module_w, y_hi))
-        pen.lineTo((col_x, y_hi))
-        pen.closePath()
+        # 컬럼 내 3개 x에서 스캔 (좌/중/우)
+        probes = [col_x + module_w * 0.2,
+                  col_x + module_w * 0.5,
+                  col_x + module_w * 0.8]
 
-        # 교차
-        try:
-            inter = pathops.op(
-                glyph_path, col,
-                pathops.PathOp.INTERSECTION,
-                fix_winding=True, clockwise=True,
-            )
-        except Exception:
-            continue
+        all_spans = []
+        for px in probes:
+            all_spans.extend(scanline_spans(glyph_path, px))
 
-        # 결과의 각 컨투어 → 모듈
-        # x는 고정(col_x ~ col_x+module_w), y만 교차에서 추출
-        rec = RecordingPen()
-        inter.draw(rec)
+        # y 구간 병합
+        all_spans.sort()
+        merged = []
+        for a, b in all_spans:
+            if b - a < 2:
+                continue
+            if merged and a <= merged[-1][1] + MIN_MODULE_H * 0.3:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
 
-        cur_pts = []
-        for op_name, args in rec.value:
-            if op_name == "moveTo":
-                cur_pts = [args[0]]
-            elif op_name in ("lineTo", "curveTo", "qCurveTo"):
-                cur_pts.extend(args)
-            elif op_name == "closePath" and cur_pts:
-                ys = [p[1] for p in cur_pts]
-                bh = max(ys) - min(ys)
-                if bh >= MIN_MODULE_H:
-                    # 바 너비는 항상 module_w로 고정, 높이만 유동
-                    modules.append((col_x, min(ys), col_x + module_w, max(ys)))
-                cur_pts = []
+        # 모듈 생성
+        for y0, y1 in merged:
+            if y1 - y0 >= MIN_MODULE_H:
+                modules.append((col_x, y0, col_x + module_w, y1))
 
     return modules
 
