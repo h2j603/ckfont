@@ -36,9 +36,13 @@ def find_source_font():
         print("Run 'make download' first.")
         sys.exit(1)
 
-    # 가장 기본적인 파일 선택 (NotoSans-VariableFont 등)
+    # 가장 기본적인 파일 선택
+    # wdth,wght 축이 있는 파일 우선, 그 다음 Variable 패턴
     for f in ttf_files:
-        if "Variable" in f.name or "variable" in f.name:
+        if "wdth" in f.name and "wght" in f.name and "Italic" not in f.name:
+            return f
+    for f in ttf_files:
+        if ("Variable" in f.name or "variable" in f.name) and "Italic" not in f.name:
             return f
     return ttf_files[0]
 
