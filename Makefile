@@ -1,7 +1,7 @@
-.PHONY: all download modify-params modify-glyphs build clean info dump validate rebuild
+.PHONY: all download modify-params geometrize modify-glyphs build clean info dump validate rebuild
 
 # Default target
-all: download modify-params modify-glyphs build
+all: download modify-params geometrize modify-glyphs build
 
 # Download Noto Sans source
 download:
@@ -10,6 +10,10 @@ download:
 # Apply parameter modifications (metrics, axes, naming, hints)
 modify-params:
 	python3 scripts/modify_params.py
+
+# Geometrize glyphs (round→ellipse, dots→circle, angular→symmetry)
+geometrize:
+	python3 scripts/geometrize.py
 
 # Apply glyph modifications (shape changes + gvar sync)
 modify-glyphs:

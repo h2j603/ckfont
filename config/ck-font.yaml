@@ -42,6 +42,16 @@ instances:
       wght: 800
       wdth: 75
 
+  - name: "CK Sans Compressed"
+    coordinates:
+      wght: 400
+      wdth: 62.5
+
+  - name: "CK Sans Compressed ExtraBold"
+    coordinates:
+      wght: 800
+      wdth: 62.5
+
 # 타이포그래피 메트릭 수정
 metrics:
   # 행간 조정 (Noto Sans 대비)
