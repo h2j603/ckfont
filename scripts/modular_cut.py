@@ -303,6 +303,13 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
     for cff_table in ("VORG",):
         if cff_table in font:
             del font[cff_table]
+            print(f"  Removed {cff_table} table")
+
+    # sfntVersion 교정: CFF→TrueType 변환 폰트가 OTTO로 남아있으면 Safari 거부
+    if "glyf" in font and font.sfntVersion != "\x00\x01\x00\x00":
+        old_ver = repr(font.sfntVersion)
+        font.sfntVersion = "\x00\x01\x00\x00"
+        print(f"  Fixed sfntVersion: {old_ver} → TrueType")
 
     # 저장
     font.save(str(output_path))

@@ -74,49 +74,87 @@ def download_file(url, dest_path):
         return False
 
 
+def download_cjk_fonts():
+    """Noto Sans CJK OTF 다운로드 (GitHub releases)."""
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Noto Sans CJK — Google Noto Fonts GitHub에서 개별 OTF 다운로드
+    CJK_FONTS = {
+        "NotoSansKR-Regular.otf": (
+            "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf"
+        ),
+        "NotoSansJP-Regular.otf": (
+            "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf"
+        ),
+        "NotoSansSC-Regular.otf": (
+            "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
+        ),
+    }
+
+    print("\n── CJK 폰트 다운로드 ──")
+    success = 0
+    for local_name, url in CJK_FONTS.items():
+        dest = SOURCES_DIR / local_name
+        if dest.exists():
+            print(f"  Skipping (already exists): {local_name}")
+            success += 1
+            continue
+        if download_file(url, dest):
+            success += 1
+
+    print(f"CJK: {success}/{len(CJK_FONTS)} files downloaded.")
+    return success
+
+
 def main():
     # 출력 디렉토리 생성
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 최신 릴리즈 조회
-    release = get_latest_release()
-    tag = release.get("tag_name", "unknown")
-    print(f"Latest release: {tag}")
+    cjk_only = "--cjk" in sys.argv
 
-    # Variable TTF 에셋 찾기
-    assets = find_variable_ttf_assets(release)
-    if not assets:
-        print("No Variable TTF assets found in the latest release.")
-        print("Falling back to direct font file download...")
-        # 직접 URL로 폴백
-        fallback_url = (
-            "https://github.com/notofonts/latin-greek-cyrillic/releases/latest"
-        )
-        print(f"Please manually download from: {fallback_url}")
-        sys.exit(1)
+    if not cjk_only:
+        # 최신 릴리즈 조회
+        release = get_latest_release()
+        tag = release.get("tag_name", "unknown")
+        print(f"Latest release: {tag}")
 
-    print(f"\nFound {len(assets)} Variable TTF file(s):")
-    for a in assets:
-        print(f"  - {a['name']} ({a['size'] / 1024:.0f} KB)")
+        # Variable TTF 에셋 찾기
+        assets = find_variable_ttf_assets(release)
+        if not assets:
+            print("No Variable TTF assets found in the latest release.")
+            print("Falling back to direct font file download...")
+            # 직접 URL로 폴백
+            fallback_url = (
+                "https://github.com/notofonts/latin-greek-cyrillic/releases/latest"
+            )
+            print(f"Please manually download from: {fallback_url}")
+            sys.exit(1)
 
-    # 다운로드
-    print("\nDownloading to sources/NotoSans/ ...")
-    success = 0
-    for asset in assets:
-        dest = SOURCES_DIR / asset["name"]
-        if dest.exists():
-            print(f"  Skipping (already exists): {asset['name']}")
-            success += 1
-            continue
-        if download_file(asset["url"], dest):
-            success += 1
+        print(f"\nFound {len(assets)} Variable TTF file(s):")
+        for a in assets:
+            print(f"  - {a['name']} ({a['size'] / 1024:.0f} KB)")
 
-    # 버전 정보 기록
-    version_file = SOURCES_DIR / "VERSION"
-    version_file.write_text(f"{tag}\n")
+        # 다운로드
+        print("\nDownloading to sources/NotoSans/ ...")
+        success = 0
+        for asset in assets:
+            dest = SOURCES_DIR / asset["name"]
+            if dest.exists():
+                print(f"  Skipping (already exists): {asset['name']}")
+                success += 1
+                continue
+            if download_file(asset["url"], dest):
+                success += 1
 
-    print(f"\nDone: {success}/{len(assets)} files downloaded.")
-    print(f"Version: {tag}")
+        # 버전 정보 기록
+        version_file = SOURCES_DIR / "VERSION"
+        version_file.write_text(f"{tag}\n")
+
+        print(f"\nDone: {success}/{len(assets)} files downloaded.")
+        print(f"Version: {tag}")
+
+    # CJK 다운로드
+    download_cjk_fonts()
 
 
 if __name__ == "__main__":
