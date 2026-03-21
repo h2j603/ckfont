@@ -84,8 +84,22 @@ VORG만 제거해도 `sfntVersion=OTTO`가 남아있으면 Safari는 여전히 �
 5. **`sfntVersion`을 `'\x00\x01\x00\x00'`으로 변경** ← 이것이 누락됨
 
 ### 왜 Chrome은 되고 Safari는 안 되는가
-- Chrome(Blink)의 폰트 파서는 실제 테이블 존재 여부로 아웃라인 형식을 판단
-- Safari(WebKit)의 폰트 파서는 sfntVersion 헤더를 먼저 검증하고, 불일치 시 early reject
+
+**Chrome/Firefox — OTS (OpenType Sanitizer) 사용:**
+- Google이 개발한 OTS 라이브러리로 폰트를 파싱
+- 잘못된 값을 자동으로 수정(silent fix)하고 로드 계속
+- sfntVersion이 OTTO여도 실제 glyf 테이블이 있으면 그냥 사용
+
+**Safari — Apple Core Text 사용:**
+- Apple의 Core Text 프레임워크로 폰트를 검증
+- OTS보다 엄격하며 auto-fix 범위가 좁음
+- `CGFontCreateWithDataProvider` API가 파싱 실패 시 폰트를 통째로 거부
+- sfntVersion과 실제 테이블의 불일치를 허용하지 않음
+- macOS Font Book의 검증과 동일한 엔진 사용
+
+**iOS 추가 제약:**
+- iOS의 모든 브라우저(Chrome, Firefox 포함)가 WebKit/Core Text 사용
+- 따라서 iOS에서는 어떤 브라우저에서도 이 폰트가 로드되지 않음
 
 ---
 
@@ -183,9 +197,39 @@ CFF→TrueType 변환 직후, 저장 전에 이 한 줄을 추가한다.
 
 ---
 
-## 8. 교훈
+## 8. CJK 폰트 빌드 파이프라인 현황
+
+현재 CJK 폰트는 명시적 빌드 스크립트 없이 수동으로 생성되었다.
+
+### 소스 → 빌드 경로
+```
+sources/NotoSans/NotoSansKR-Regular.otf  (CFF, sfntVersion=OTTO)
+    ↓ [CFF→TrueType 변환 — 수동, 스크립트 미존재]
+build/CKSans-KR-Regular.ttf              (glyf, 그러나 sfntVersion=OTTO ❌)
+    ↓ [modular_cut.py]
+build/CKSans-Cut-KR.ttf                  (glyf+cut, sfntVersion=OTTO ❌)
+    ↓ [woff2 변환]
+preview/CKSans-Cut-KR-v4.woff2           (서빙, sfntVersion=OTTO ❌)
+```
+
+### 라틴 폰트 (정상 작동)와의 비교
+```
+sources/NotoSans/NotoSans[wdth,wght].ttf  (TrueType Variable, sfntVersion=\x00\x01\x00\x00)
+    ↓ [build_base.py — instancing]
+build/CKSans-Regular.ttf                   (glyf, sfntVersion=\x00\x01\x00\x00 ✅)
+    ↓ [modular_cut.py]
+build/CKSans-Cut.ttf                       (glyf+cut, sfntVersion=\x00\x01\x00\x00 ✅)
+```
+
+**차이점**: 라틴 소스는 이미 TrueType이므로 sfntVersion이 올바르다.
+CJK 소스는 CFF(OTF)에서 변환하므로 sfntVersion을 수동으로 바꿔야 한다.
+
+---
+
+## 9. 교훈
 
 1. **CFF→TrueType 변환은 5단계** — 아웃라인 변환, CFF 테이블 제거, VORG 제거, maxp 업데이트, **sfntVersion 변경**. 어느 하나라도 빠지면 특정 브라우저에서 실패.
-2. **Chrome의 관대함이 버그를 숨긴다** — Chrome은 잘못된 sfntVersion을 무시하므로 개발 중 문제를 발견하기 어렵다.
+2. **Chrome의 관대함이 버그를 숨긴다** — Chrome(OTS)은 잘못된 sfntVersion을 자동 수정하므로 개발 중 문제를 발견하기 어렵다. Safari(Core Text)는 이를 허용하지 않는다.
 3. **`document.fonts.check()`는 신뢰할 수 없다** — Safari에서 check()=true이면서 status=error인 경우가 있다. 실제 로드 상태는 `FontFace.status`로 확인해야 한다.
 4. **폰트 검증 자동화 필요** — sfntVersion과 테이블 일관성을 빌드 시 자동 검증해야 이런 문제를 사전 방지할 수 있다.
+5. **iOS에서는 모든 브라우저가 WebKit** — iOS Chrome도 Core Text를 사용하므로, Safari에서 안 되면 iOS 전체에서 안 된다.
