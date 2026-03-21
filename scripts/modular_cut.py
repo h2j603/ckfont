@@ -12,9 +12,9 @@ CK Sans 모듈러 컷 변형 생성.
   4. 모든 모듈을 합쳐서 새 글리프로
 
 파라미터:
-  --module-w  모듈 폭 (기본 55)
-  --gap       모듈 간 갭 (기본 22)
-  --radius    코너 라운드 반지름 (기본 14)
+  --module-w  모듈 폭 (기본 80)
+  --gap       모듈 간 갭 (기본 35)
+  --radius    코너 라운드 반지름 (기본 40, =w/2면 캡슐형)
   --dry-run   저장하지 않고 결과만 출력
 
 사용법:
@@ -47,7 +47,7 @@ SKIP_GLYPHS = {"i", "l", ".", ",", "'", '"', "-", "_", " "}
 
 # 최소 모듈 크기 (이보다 작으면 무시)
 MIN_MODULE_W = 10
-MIN_MODULE_H = 15
+MIN_MODULE_H = 40  # 너무 짧은 바 제거 (캡슐 r*2 이상은 되어야)
 
 
 def rounded_rect_path(x0, y0, x1, y1, r):
@@ -105,17 +105,25 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
     y_hi = glyph_obj.yMax + 10
 
     modules = []
-    col_x = glyph_obj.xMin
 
-    while col_x < glyph_obj.xMax:
-        col_right = min(col_x + module_w, glyph_obj.xMax + gap)
+    # 글리프 중심 기준으로 그리드 정렬
+    glyph_cx = (glyph_obj.xMin + glyph_obj.xMax) / 2
+    glyph_w = glyph_obj.xMax - glyph_obj.xMin
 
-        # 이 컬럼의 직사각형
+    # 필요한 컬럼 수 계산, 중앙 정렬
+    n_cols = max(1, int(round(glyph_w / pitch)))
+    total_grid_w = n_cols * module_w + (n_cols - 1) * gap
+    grid_start = glyph_cx - total_grid_w / 2
+
+    for ci in range(n_cols):
+        col_x = grid_start + ci * pitch
+
+        # 이 컬럼의 직사각형 (높이는 넉넉하게)
         col = pathops.Path()
         pen = col.getPen()
         pen.moveTo((col_x, y_lo))
-        pen.lineTo((col_right, y_lo))
-        pen.lineTo((col_right, y_hi))
+        pen.lineTo((col_x + module_w, y_lo))
+        pen.lineTo((col_x + module_w, y_hi))
         pen.lineTo((col_x, y_hi))
         pen.closePath()
 
@@ -127,10 +135,10 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
                 fix_winding=True, clockwise=True,
             )
         except Exception:
-            col_x += pitch
             continue
 
-        # 결과의 각 컨투어 → 모듈 bbox
+        # 결과의 각 컨투어 → 모듈
+        # x는 고정(col_x ~ col_x+module_w), y만 교차에서 추출
         rec = RecordingPen()
         inter.draw(rec)
 
@@ -141,16 +149,12 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
             elif op_name in ("lineTo", "curveTo", "qCurveTo"):
                 cur_pts.extend(args)
             elif op_name == "closePath" and cur_pts:
-                xs = [p[0] for p in cur_pts]
                 ys = [p[1] for p in cur_pts]
-                bbox = (min(xs), min(ys), max(xs), max(ys))
-                bw = bbox[2] - bbox[0]
-                bh = bbox[3] - bbox[1]
-                if bw >= MIN_MODULE_W and bh >= MIN_MODULE_H:
-                    modules.append(bbox)
+                bh = max(ys) - min(ys)
+                if bh >= MIN_MODULE_H:
+                    # 바 너비는 항상 module_w로 고정, 높이만 유동
+                    modules.append((col_x, min(ys), col_x + module_w, max(ys)))
                 cur_pts = []
-
-        col_x += pitch
 
     return modules
 
@@ -191,9 +195,9 @@ def modules_to_ttglyph(modules, radius, glyf_table):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    module_w = 55
-    gap = 22
-    radius = 14
+    module_w = 80
+    gap = 35
+    radius = 40
 
     # 인자 파싱
     args = sys.argv[1:]
