@@ -17,16 +17,13 @@ ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = ROOT / "build"
 PREVIEW_DIR = ROOT / "preview"
 
-CHARS = (
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    "0123456789.,;:!?-'\"()/@#&*+=_~ "
-)
+CHARS = None  # None = cmap 전체 추출 (다국어 지원)
 
 INSTANCES = [
     {"key": "extrabold", "name": "CK Sans ExtraBold", "wght": 800, "wdth": 75},
 ]
 
-FLATTEN_STEPS = 16  # 곡선당 직선 세그먼트 수 (높을수록 부드러움)
+FLATTEN_STEPS = 10  # 곡선당 직선 세그먼트 수 (다국어 전체 추출 시 균형점)
 
 
 def flatten_qcurve(points, steps=FLATTEN_STEPS):
@@ -159,16 +156,13 @@ def main():
         hmtx = font["hmtx"]
         glyphs = {}
 
-        for char in CHARS:
-            code = ord(char)
-            glyph_name = cmap.get(code)
-            if not glyph_name:
-                continue
-
+        for code, glyph_name in cmap.items():
             paths = glyph_to_paths(font, glyph_name)
             advance = hmtx[glyph_name][0] if glyph_name in hmtx.metrics else 0
 
-            glyphs[char] = {
+            # Use character as key (JSON key)
+            ch = chr(code)
+            glyphs[ch] = {
                 "n": glyph_name,
                 "u": code,
                 "a": advance,
