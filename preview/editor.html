@@ -261,14 +261,31 @@ function clipHalf(pts, axis, val, keep) {
   return out;
 }
 
+function circlePoly(cx, cy, r) {
+  // 정원 (완전한 원) 폴리곤
+  const pts = [], S = 20;
+  for (let i = 0; i < S; i++) {
+    const a = (2 * Math.PI * i) / S;
+    pts.push({x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r});
+  }
+  return pts;
+}
+
 function roundedRectContour(x0, y0, x1, y1, r) {
-  // 둥근 사각형을 폴리곤 포인트로 생성 (캡슐형)
   const w = x1 - x0, h = y1 - y0;
+
+  // 높이 < 너비 → 정원 (원)으로 처리
+  if (h <= w) {
+    const cr = h / 2;
+    return circlePoly((x0 + x1) / 2, (y0 + y1) / 2, cr);
+  }
+
+  // 캡슐형 둥근 사각형
   r = Math.min(r, w / 2, h / 2);
   if (r < 1) return [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
 
   const pts = [];
-  const S = 8; // 코너당 세그먼트 수
+  const S = 8;
   // 우하 코너
   for (let i = 0; i <= S; i++) {
     const a = (Math.PI/2) * (i / S);
@@ -292,15 +309,36 @@ function roundedRectContour(x0, y0, x1, y1, r) {
   return pts;
 }
 
+function scanlineSpans(contours, x) {
+  // 수직 스캔라인: x 위치에서 모든 컨투어 엣지와의 y 교차점 찾기
+  // even-odd 규칙으로 실제 채워진 y 구간 반환
+  const hits = [];
+  for (const c of contours) {
+    for (let i = 0; i < c.length; i++) {
+      const a = c[i], b = c[(i+1) % c.length];
+      if ((a.x <= x && b.x > x) || (b.x <= x && a.x > x)) {
+        const t = (x - a.x) / (b.x - a.x);
+        hits.push(a.y + t * (b.y - a.y));
+      }
+    }
+  }
+  hits.sort((a, b) => a - b);
+
+  // even-odd: 밖→안→밖→안... 순서로 페어링
+  const spans = [];
+  for (let i = 0; i + 1 < hits.length; i += 2) {
+    spans.push([hits[i], hits[i+1]]);
+  }
+  return spans;
+}
+
 function modularBars(contours, barW, gap, radius, minH) {
-  // 1. 전체 경계 파악
   const all = contours.flat();
   if (!all.length) return [];
-  const xs = all.map(p => p.x), ys = all.map(p => p.y);
+  const xs = all.map(p => p.x);
   const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.min(...ys), yMax = Math.max(...ys);
 
-  // 2. 컬럼 그리드 (글리프 중앙 정렬)
+  // 컬럼 그리드 (글리프 중앙 정렬)
   const pitch = barW + gap;
   const glyphW = xMax - xMin;
   const nCols = Math.max(1, Math.round(glyphW / pitch));
@@ -312,36 +350,30 @@ function modularBars(contours, barW, gap, radius, minH) {
   for (let ci = 0; ci < nCols; ci++) {
     const colX = startX + ci * pitch;
 
-    // 3. 컨투어를 이 컬럼으로 클리핑
-    const fragments = [];
-    for (const c of contours) {
-      let cl = clipHalf(c, 'x', colX, 'gte');
-      cl = clipHalf(cl, 'x', colX + barW, 'lte');
-      if (cl.length >= 3) fragments.push(cl);
+    // 컬럼 내 3개 지점에서 스캔라인 (좌/중/우) → 합쳐서 빈틈 없이
+    const probes = [colX + barW*0.2, colX + barW*0.5, colX + barW*0.8];
+    let allSpans = [];
+    for (const px of probes) {
+      allSpans = allSpans.concat(scanlineSpans(contours, px));
     }
 
-    // 4. 각 프래그먼트의 y 범위 추출
-    const ySpans = [];
-    for (const frag of fragments) {
-      const fys = frag.map(p => p.y);
-      const fyMin = Math.min(...fys), fyMax = Math.max(...fys);
-      if (fyMax - fyMin >= minH) ySpans.push([fyMin, fyMax]);
-    }
-
-    // 5. 겹치는 y 범위 병합
-    ySpans.sort((a, b) => a[0] - b[0]);
+    // y 범위 병합
+    allSpans.sort((a, b) => a[0] - b[0]);
     const merged = [];
-    for (const [a, b] of ySpans) {
-      if (merged.length && a <= merged[merged.length-1][1] + gap * 0.3) {
+    for (const [a, b] of allSpans) {
+      if (b - a < 2) continue; // 너무 얇은 교차 무시
+      if (merged.length && a <= merged[merged.length-1][1] + minH * 0.3) {
         merged[merged.length-1][1] = Math.max(merged[merged.length-1][1], b);
       } else {
         merged.push([a, b]);
       }
     }
 
-    // 6. 각 y 범위에 둥근 사각형 바 생성
+    // 최소 높이 필터 + 둥근 사각형 바 생성
     for (const [y0, y1] of merged) {
-      bars.push(roundedRectContour(colX, y0, colX + barW, y1, radius));
+      if (y1 - y0 >= minH) {
+        bars.push(roundedRectContour(colX, y0, colX + barW, y1, radius));
+      }
     }
   }
 
