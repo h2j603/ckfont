@@ -31,15 +31,6 @@ button:active { opacity:.8; }
     <input type="text" id="previewText" value="CONDENSED KIWI">
   </div>
   <div class="row">
-    <label>Instance</label>
-    <select id="instance">
-      <option value="extrabold">ExtraBold</option>
-      <option value="regular">Regular</option>
-      <option value="compressed-extrabold">Compressed EB</option>
-      <option value="compressed">Compressed</option>
-    </select>
-  </div>
-  <div class="row">
     <label>Size</label>
     <input type="range" id="fontSize" min="20" max="200" value="80">
     <span class="val" id="fontSizeVal">80</span>
@@ -123,7 +114,7 @@ let glyphData = null;
 function getParams() {
   return {
     text: document.getElementById('previewText').value || 'H',
-    instanceKey: document.getElementById('instance').value,
+    instanceKey: 'extrabold',
     fontSize: +document.getElementById('fontSize').value,
     scaleX: +document.getElementById('scaleX').value / 100,
     scaleY: +document.getElementById('scaleY').value / 100,

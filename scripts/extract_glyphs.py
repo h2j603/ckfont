@@ -23,11 +23,7 @@ CHARS = (
 )
 
 INSTANCES = [
-    {"key": "regular", "name": "CK Sans Regular", "wght": 400, "wdth": 75},
     {"key": "extrabold", "name": "CK Sans ExtraBold", "wght": 800, "wdth": 75},
-    {"key": "compressed", "name": "CK Sans Compressed", "wght": 400, "wdth": 62.5},
-    {"key": "compressed-extrabold", "name": "CK Sans Compressed ExtraBold",
-     "wght": 800, "wdth": 62.5},
 ]
 
 FLATTEN_STEPS = 6  # 곡선당 직선 세그먼트 수
