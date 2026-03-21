@@ -9,6 +9,7 @@ CK Font 최종 빌드 스크립트.
 - Static instances (설정에 따라)
 """
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -152,10 +153,20 @@ def main():
         for inst in instances:
             build_static_instance(source_path, inst, static_dir)
 
+    # Preview 폴더에 폰트 복사 (웹 미리보기용)
+    preview_dir = ROOT / "preview"
+    if preview_dir.exists():
+        for ext in ("ttf", "woff2"):
+            src = BUILD_DIR / f"CKSans-Variable.{ext}"
+            if src.exists():
+                shutil.copy2(src, preview_dir / src.name)
+                print(f"  Copied to preview/: {src.name}")
+
     # 최종 정보 출력
     print_font_info(source_path)
 
     print("Build complete!")
+    print("Open preview/index.html to see the font in browser.")
 
 
 if __name__ == "__main__":

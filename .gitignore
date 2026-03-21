@@ -1,9 +1,13 @@
 # Build outputs
 build/
+
+# Font files (except in preview/)
 *.ttf
 *.otf
 *.woff
 *.woff2
+!preview/*.ttf
+!preview/*.woff2
 
 # Source fonts (downloaded separately)
 sources/NotoSans/

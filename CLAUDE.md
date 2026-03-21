@@ -46,6 +46,8 @@ ckfont/
 │   ├── modify_glyphs.py     # 글리프 형태 수정
 │   └── build.py             # 최종 빌드
 ├── build/               # 빌드 출력물 (git에서 제외)
+├── preview/             # 웹 미리보기 (빌드 시 폰트 자동 복사)
+│   └── index.html       # 브라우저에서 폰트 확인
 ├── docs/                # 문서
 │   └── specs/           # 디자인 스펙 문서
 │       └── design-spec.md
