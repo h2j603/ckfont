@@ -47,7 +47,7 @@ SKIP_GLYPHS = {"i", "l", ".", ",", "'", '"', "-", "_", " "}
 
 # 최소 모듈 크기 (이보다 작으면 무시)
 MIN_MODULE_W = 10
-MIN_MODULE_H = 25  # 짧은 건 정원(원)으로 표현하므로 낮게
+MIN_MODULE_H = 20  # 짧은 건 정원(원)으로 표현하므로 낮게
 
 
 def circle_path(cx, cy, r):
@@ -104,27 +104,27 @@ def scanline_spans(glyph_path, x):
 
     even-odd 규칙으로 안/밖 판별 → D, O 등 카운터 정확히 처리.
     """
-    # pathops Path에서 세그먼트 추출
     rec = RecordingPen()
     glyph_path.draw(rec)
 
     # 모든 직선 세그먼트로 변환 (곡선은 세분화)
     edges = []
     cur = None
+    contour_start = None  # 컨투어 시작점 추적
+
     for op_name, args in rec.value:
         if op_name == "moveTo":
             cur = args[0]
+            contour_start = args[0]
         elif op_name == "lineTo":
             if cur is not None:
                 edges.append((cur, args[0]))
             cur = args[0]
         elif op_name == "curveTo":
-            # cubic → 직선 세분화
             if cur is not None:
                 p0 = cur
-                steps = 8
-                for s in range(1, steps + 1):
-                    t = s / steps
+                for s in range(1, 9):
+                    t = s / 8
                     mt = 1 - t
                     px = mt**3*p0[0] + 3*mt**2*t*args[0][0] + 3*mt*t**2*args[1][0] + t**3*args[2][0]
                     py = mt**3*p0[1] + 3*mt**2*t*args[0][1] + 3*mt*t**2*args[1][1] + t**3*args[2][1]
@@ -134,9 +134,8 @@ def scanline_spans(glyph_path, x):
         elif op_name == "qCurveTo":
             if cur is not None:
                 p0 = cur
-                steps = 8
-                for s in range(1, steps + 1):
-                    t = s / steps
+                for s in range(1, 9):
+                    t = s / 8
                     mt = 1 - t
                     px = mt**2*p0[0] + 2*mt*t*args[0][0] + t**2*args[1][0]
                     py = mt**2*p0[1] + 2*mt*t*args[0][1] + t**2*args[1][1]
@@ -144,7 +143,11 @@ def scanline_spans(glyph_path, x):
                     cur = (px, py)
             cur = args[-1]
         elif op_name == "closePath":
+            # 닫기 엣지 추가 (마지막 점 → 시작점)
+            if cur is not None and contour_start is not None:
+                edges.append((cur, contour_start))
             cur = None
+            contour_start = None
 
     # x 위치에서 교차하는 y 값 수집
     hits = []
@@ -247,9 +250,9 @@ def modules_to_ttglyph(modules, radius, glyf_table):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    module_w = 80
-    gap = 35
-    radius = 40
+    module_w = 45
+    gap = 16
+    radius = 22
 
     # 인자 파싱
     args = sys.argv[1:]
