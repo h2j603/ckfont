@@ -62,7 +62,7 @@ button:active { opacity:.8; }
   <div class="sl">Stroke</div>
 
   <div class="row">
-    <label>Weight</label>
+    <label>Thickness</label>
     <input type="range" id="weight" min="-50" max="50" value="0" step="1">
     <span class="val" id="weightVal">0</span>
   </div>
@@ -176,18 +176,28 @@ function offsetPolygon(poly, dist) {
 
 function offsetPaths(paths, dist) {
   if (dist === 0) return paths.map(p => p.map(pt => [pt[0], pt[1]]));
+  const copy = paths.map(p => p.map(pt => [pt[0], pt[1]]));
 
-  const clipperPaths = paths.map(p => p.map(pt => ({ X: Math.round(pt[0]), Y: Math.round(pt[1]) })));
+  try {
+    const clipperPaths = paths.map(p =>
+      p.map(pt => ({ X: Math.round(pt[0]), Y: Math.round(pt[1]) }))
+    );
 
-  const co = new ClipperLib.ClipperOffset();
-  for (const cp of clipperPaths) {
-    co.AddPath(cp, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    const co = new ClipperLib.ClipperOffset();
+    co.MiterLimit = 2;
+    co.ArcTolerance = 5;
+    for (const cp of clipperPaths) {
+      co.AddPath(cp, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    }
+
+    const solution = new ClipperLib.Paths();
+    co.Execute(solution, dist);
+
+    const result = solution.map(s => s.map(p => [p.X, p.Y])).filter(p => p.length >= 3);
+    return result.length > 0 ? result : copy;
+  } catch (e) {
+    return copy; // 실패 시 원본 반환
   }
-
-  const solution = new ClipperLib.Paths();
-  co.Execute(solution, dist);
-
-  return solution.map(s => s.map(p => [p.X, p.Y])).filter(p => p.length >= 3);
 }
 
 // ═══ Corner Rounding ═══
@@ -336,15 +346,11 @@ function processGlyph(paths, params) {
 
   let processed = paths.map(p => p.map(pt => [pt[0], pt[1]]));
 
-  // 0. Scale (장평/높이)
+  // 0. Scale (장평/높이) — 원점 기준으로 스케일해야 커닝 유지
   if (params.scaleX !== 1 || params.scaleY !== 1) {
-    // Scale around glyph center
-    const allPts = processed.flat();
-    const cx = allPts.reduce((s,p)=>s+p[0],0) / allPts.length;
-    const cy = allPts.reduce((s,p)=>s+p[1],0) / allPts.length;
     processed = processed.map(p => p.map(pt => [
-      cx + (pt[0]-cx) * params.scaleX,
-      cy + (pt[1]-cy) * params.scaleY
+      pt[0] * params.scaleX,
+      pt[1] * params.scaleY
     ]));
   }
 
