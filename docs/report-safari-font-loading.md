@@ -20,6 +20,14 @@ Chrome에서는 정상 작동한다.
 
 **핵심**: 모듈러 컷 적용 여부와 무관하게, 모든 CJK 폰트가 Safari에서 실패한다.
 
+iOS Chrome에서도 동일하게 `CKCutKR: status=error` 확인됨 — iOS의 모든 브라우저가 WebKit을 사용하므로 예상된 결과.
+
+| 브라우저 | CKCut (Latin) | CKCutKR (한글) |
+|---------|---------------|---------------|
+| Safari iOS | loaded | **error** |
+| Chrome iOS | loaded | **error** |
+| Chrome Desktop | loaded | loaded (추정) |
+
 ---
 
 ## 2. 근본 원인
