@@ -2,16 +2,10 @@
 <html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Font Debug v2</title>
+<title>Font Debug v3</title>
 <style>
-/* Test 1: Cut KR woff2 (v5 re-compressed) */
-@font-face { font-family: 'CutKR_woff2'; src: url('CKSans-Cut-KR-v5.woff2') format('woff2'); }
-/* Test 2: Cut KR TTF (raw) */
-@font-face { font-family: 'CutKR_ttf'; src: url('CKSans-Cut-KR-v5.ttf') format('truetype'); }
-/* Test 3: Pre-cut Regular KR woff2 (no modular cut) */
-@font-face { font-family: 'RegKR'; src: url('CKSans-KR-Regular.woff2') format('woff2'); }
-/* Test 4: Latin Cut (working reference) */
 @font-face { font-family: 'CKCut'; src: url('CKSans-Cut-v4.woff2') format('woff2'); }
+@font-face { font-family: 'CKCutKR'; src: url('CKSans-Cut-KR-v4.woff2') format('woff2'); }
 
 body { background: #000; color: #fff; font-family: system-ui; padding: 10px; }
 .test { margin: 24px 0; border-bottom: 1px solid #222; padding-bottom: 16px; }
@@ -22,57 +16,65 @@ body { background: #000; color: #fff; font-family: system-ui; padding: 10px; }
 </style>
 </head><body>
 
-<h3 style="font-size:14px;color:#0f0">Font Debug v2 — Safari load test</h3>
+<h3 style="font-size:14px;color:#0f0">Font Debug v3 — VORG removed</h3>
 
 <div class="test">
-  <div class="label">1. Latin CKCut (reference — should show bars)</div>
+  <div class="label">1. Latin CKCut (reference)</div>
   <div class="char" style="font-family:'CKCut',sans-serif">AB</div>
   <div class="info" id="s1">...</div>
 </div>
 
 <div class="test">
-  <div class="label">2. KR Pre-cut Regular woff2 (NO modular cut — does it load?)</div>
-  <div class="char" style="font-family:'RegKR',sans-serif">가나</div>
+  <div class="label">2. KR CKCutKR (VORG removed from woff2)</div>
+  <div class="char" style="font-family:'CKCutKR',sans-serif">가나</div>
   <div class="info" id="s2">...</div>
 </div>
 
 <div class="test">
-  <div class="label">3. KR Cut woff2 v5 (re-compressed)</div>
-  <div class="char" style="font-family:'CutKR_woff2',sans-serif">가나</div>
-  <div class="info" id="s3">...</div>
-</div>
-
-<div class="test">
-  <div class="label">4. KR Cut TTF (raw, 7.6MB)</div>
-  <div class="char" style="font-family:'CutKR_ttf',sans-serif">가나</div>
-  <div class="info" id="s4">...</div>
-</div>
-
-<div class="test">
-  <div class="label">5. System sans-serif (fallback reference)</div>
+  <div class="label">3. System sans-serif (fallback reference)</div>
   <div class="char" style="font-family:sans-serif">가나</div>
-  <div class="info" id="s5">system font</div>
+  <div class="info" id="s3">system font</div>
+</div>
+
+<div class="test">
+  <div class="label">Canvas width comparison</div>
+  <canvas id="cv" width="300" height="250"></canvas>
+  <div class="info" id="cvInfo">...</div>
 </div>
 
 <script>
 const tests = [
   { id: 's1', family: 'CKCut', label: 'CKCut' },
-  { id: 's2', family: 'RegKR', label: 'RegKR' },
-  { id: 's3', family: 'CutKR_woff2', label: 'CutKR woff2' },
-  { id: 's4', family: 'CutKR_ttf', label: 'CutKR TTF' },
+  { id: 's2', family: 'CKCutKR', label: 'CKCutKR' },
 ];
 
 document.fonts.ready.then(() => {
   tests.forEach(t => {
     const el = document.getElementById(t.id);
-    let status = 'unknown';
+    let status = 'not found';
     document.fonts.forEach(f => {
       if (f.family === t.family) status = f.status;
     });
-    const check = document.fonts.check('150px "' + t.family + '"');
-    el.textContent = t.label + ': status=' + status + ', check=' + check;
+    el.textContent = t.label + ': status=' + status;
     el.className = (status === 'loaded') ? 'info' : 'info err';
   });
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const info = document.getElementById('cvInfo');
+
+  ctx.font = '100px "CKCutKR"';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('\uAC00', 10, 120);
+  const w1 = ctx.measureText('\uAC00').width;
+
+  ctx.font = '100px sans-serif';
+  ctx.fillStyle = '#f00';
+  ctx.fillText('\uAC00', 10, 230);
+  const w2 = ctx.measureText('\uAC00').width;
+
+  info.innerHTML = 'CKCutKR: ' + w1.toFixed(1) + 'px | sans-serif: ' + w2.toFixed(1) + 'px<br>';
+  info.innerHTML += (Math.abs(w1-w2) > 1) ? 'DIFFERENT → custom font loaded!' : 'SAME → still falling back!';
 });
 </script>
 </body></html>
