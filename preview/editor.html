@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CK Sans Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#111; color:#eee; font-family:system-ui,sans-serif; overflow-x:hidden; }
+
+#canvas-wrap { width:100%; border-bottom:1px solid #333; }
+canvas { display:block; width:100%!important; height:auto!important; }
+
+.controls {
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.row label {
+  font-size:11px;
+  color:#888;
+  min-width:70px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.row input[type=range] {
+  flex:1;
+  accent-color:#0f0;
+}
+.row .val {
+  font-size:11px;
+  color:#0f0;
+  min-width:36px;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+select {
+  background:#222;
+  color:#eee;
+  border:1px solid #444;
+  padding:6px 8px;
+  border-radius:4px;
+  font-size:13px;
+  flex:1;
+}
+input[type=text] {
+  background:#222;
+  color:#eee;
+  border:1px solid #444;
+  padding:6px 8px;
+  border-radius:4px;
+  font-size:14px;
+  flex:1;
+}
+.sep {
+  height:1px;
+  background:#333;
+}
+button {
+  background:#0f0;
+  color:#111;
+  border:none;
+  padding:12px;
+  border-radius:6px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  letter-spacing:.03em;
+}
+button:active { opacity:.8; }
+.section-label {
+  font-size:10px;
+  color:#666;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+}
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap"></div>
+
+<div class="controls">
+  <div class="row">
+    <input type="text" id="previewText" value="CONDENSED KIWI">
+  </div>
+
+  <div class="row">
+    <label>Instance</label>
+    <select id="instance">
+      <option value="extrabold">ExtraBold</option>
+      <option value="regular">Regular</option>
+      <option value="compressed-extrabold">Compressed ExtraBold</option>
+      <option value="compressed">Compressed</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>Size</label>
+    <input type="range" id="fontSize" min="20" max="200" value="80">
+    <span class="val" id="fontSizeVal">80</span>
+  </div>
+
+  <div class="sep"></div>
+  <div class="section-label">Cut Effect</div>
+
+  <div class="row">
+    <label>Direction</label>
+    <select id="cutDir">
+      <option value="vertical">Vertical</option>
+      <option value="horizontal">Horizontal</option>
+      <option value="grid">Grid</option>
+      <option value="none">None</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>Width</label>
+    <input type="range" id="cutWidth" min="1" max="80" value="12">
+    <span class="val" id="cutWidthVal">12</span>
+  </div>
+
+  <div class="row">
+    <label>Spacing</label>
+    <input type="range" id="cutSpacing" min="10" max="200" value="70">
+    <span class="val" id="cutSpacingVal">70</span>
+  </div>
+
+  <div class="row">
+    <label>Offset</label>
+    <input type="range" id="cutOffset" min="0" max="100" value="0">
+    <span class="val" id="cutOffsetVal">0</span>
+  </div>
+
+  <div class="sep"></div>
+
+  <button id="exportBtn">Export .otf</button>
+</div>
+
+<script>
+// ─── Data ───
+let glyphData = null;
+let currentInstance = null;
+
+// ─── Parameters ───
+function getParams() {
+  return {
+    text: document.getElementById('previewText').value || 'H',
+    instanceKey: document.getElementById('instance').value,
+    fontSize: +document.getElementById('fontSize').value,
+    cutDir: document.getElementById('cutDir').value,
+    cutWidth: +document.getElementById('cutWidth').value,
+    cutSpacing: +document.getElementById('cutSpacing').value,
+    cutOffset: +document.getElementById('cutOffset').value,
+  };
+}
+
+// ─── Polygon Clipping (Sutherland-Hodgman) ───
+function clipRight(poly, xMin) {
+  if (poly.length < 3) return [];
+  const r = [];
+  for (let i = 0; i < poly.length; i++) {
+    const c = poly[i], n = poly[(i+1)%poly.length];
+    const ci = c[0] >= xMin, ni = n[0] >= xMin;
+    if (ci) r.push(c);
+    if (ci !== ni) {
+      const t = (xMin - c[0]) / (n[0] - c[0]);
+      r.push([xMin, c[1] + t * (n[1] - c[1])]);
+    }
+  }
+  return r;
+}
+
+function clipLeft(poly, xMax) {
+  if (poly.length < 3) return [];
+  const r = [];
+  for (let i = 0; i < poly.length; i++) {
+    const c = poly[i], n = poly[(i+1)%poly.length];
+    const ci = c[0] <= xMax, ni = n[0] <= xMax;
+    if (ci) r.push(c);
+    if (ci !== ni) {
+      const t = (xMax - c[0]) / (n[0] - c[0]);
+      r.push([xMax, c[1] + t * (n[1] - c[1])]);
+    }
+  }
+  return r;
+}
+
+function clipTop(poly, yMax) {
+  if (poly.length < 3) return [];
+  const r = [];
+  for (let i = 0; i < poly.length; i++) {
+    const c = poly[i], n = poly[(i+1)%poly.length];
+    const ci = c[1] <= yMax, ni = n[1] <= yMax;
+    if (ci) r.push(c);
+    if (ci !== ni) {
+      const t = (yMax - c[1]) / (n[1] - c[1]);
+      r.push([c[0] + t * (n[0] - c[0]), yMax]);
+    }
+  }
+  return r;
+}
+
+function clipBottom(poly, yMin) {
+  if (poly.length < 3) return [];
+  const r = [];
+  for (let i = 0; i < poly.length; i++) {
+    const c = poly[i], n = poly[(i+1)%poly.length];
+    const ci = c[1] >= yMin, ni = n[1] >= yMin;
+    if (ci) r.push(c);
+    if (ci !== ni) {
+      const t = (yMin - c[1]) / (n[1] - c[1]);
+      r.push([c[0] + t * (n[0] - c[0]), yMin]);
+    }
+  }
+  return r;
+}
+
+function applyCuts(paths, params, glyphAdvance) {
+  if (params.cutDir === 'none' || !paths.length) return paths;
+
+  const allPts = paths.flat();
+  const xMin = Math.min(...allPts.map(p => p[0]));
+  const xMax = Math.max(...allPts.map(p => p[0]));
+  const yMin = Math.min(...allPts.map(p => p[1]));
+  const yMax = Math.max(...allPts.map(p => p[1]));
+
+  let result = paths;
+
+  if (params.cutDir === 'vertical' || params.cutDir === 'grid') {
+    result = cutAxis(result, 'x', xMin, xMax, params.cutWidth, params.cutSpacing, params.cutOffset);
+  }
+  if (params.cutDir === 'horizontal' || params.cutDir === 'grid') {
+    result = cutAxis(result, 'y', yMin, yMax, params.cutWidth, params.cutSpacing, params.cutOffset);
+  }
+
+  return result;
+}
+
+function cutAxis(paths, axis, lo, hi, cutW, cutS, cutOff) {
+  // Compute solid strip ranges
+  const strips = [];
+  let pos = lo + cutOff;
+  let solidStart = lo;
+
+  while (pos < hi) {
+    const cutL = pos;
+    const cutR = pos + cutW;
+    if (cutL > solidStart) strips.push([solidStart, cutL]);
+    solidStart = cutR;
+    pos += cutS;
+  }
+  if (solidStart < hi) strips.push([solidStart, hi]);
+
+  const result = [];
+  for (const path of paths) {
+    for (const [a, b] of strips) {
+      let clipped;
+      if (axis === 'x') {
+        clipped = clipLeft(clipRight(path, a), b);
+      } else {
+        clipped = clipTop(clipBottom(path, a), b);
+      }
+      if (clipped.length >= 3) result.push(clipped);
+    }
+  }
+  return result;
+}
+
+// ─── p5.js Sketch ───
+const sketch = (p) => {
+  let cnv;
+  const W = () => Math.min(window.innerWidth, 800);
+  const H = () => Math.round(W() * 0.6);
+
+  p.setup = () => {
+    cnv = p.createCanvas(W(), H());
+    cnv.parent('canvas-wrap');
+    p.pixelDensity(2);
+    p.textFont('monospace');
+  };
+
+  p.windowResized = () => {
+    p.resizeCanvas(W(), H());
+  };
+
+  p.draw = () => {
+    if (!glyphData) {
+      p.background(17);
+      p.fill(100);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.text('Loading...', p.width/2, p.height/2);
+      return;
+    }
+
+    const params = getParams();
+    const inst = glyphData.instances[params.instanceKey];
+    if (!inst) return;
+
+    const meta = glyphData.meta;
+    const scale = params.fontSize / meta.unitsPerEm;
+    const baseline = p.height * 0.7;
+
+    p.background(17);
+
+    // Draw text
+    let cursorX = 20;
+    const text = params.text;
+
+    for (let ci = 0; ci < text.length; ci++) {
+      const ch = text[ci];
+      const glyph = inst.glyphs[ch];
+      if (!glyph) {
+        cursorX += params.fontSize * 0.3;
+        continue;
+      }
+
+      // Apply cuts in font units, then scale for drawing
+      const cutPaths = applyCuts(glyph.p, {
+        cutDir: params.cutDir,
+        cutWidth: params.cutWidth,
+        cutSpacing: params.cutSpacing,
+        cutOffset: params.cutOffset,
+      }, glyph.a);
+
+      // Draw glyph
+      p.push();
+      p.translate(cursorX, baseline);
+      p.scale(scale, -scale);
+      p.fill(238);
+      p.noStroke();
+      for (const path of cutPaths) {
+        p.beginShape();
+        for (const pt of path) {
+          p.vertex(pt[0], pt[1]);
+        }
+        p.endShape(p.CLOSE);
+      }
+      p.pop();
+
+      cursorX += glyph.a * scale;
+    }
+
+    // Info
+    p.fill(80);
+    p.noStroke();
+    p.textSize(10);
+    p.textAlign(p.LEFT, p.TOP);
+    p.text(`${inst.name} | cut: ${params.cutDir} w=${params.cutWidth} s=${params.cutSpacing}`, 8, 8);
+  };
+};
+
+new p5(sketch);
+
+// ─── Controls ───
+document.querySelectorAll('input[type=range]').forEach(el => {
+  const valEl = document.getElementById(el.id + 'Val');
+  el.addEventListener('input', () => { if (valEl) valEl.textContent = el.value; });
+});
+
+// ─── Export ───
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!glyphData) return;
+  const params = getParams();
+  const inst = glyphData.instances[params.instanceKey];
+  if (!inst) return;
+
+  const meta = glyphData.meta;
+  const notdef = new opentype.Glyph({
+    name: '.notdef', unicode: 0, advanceWidth: 650, path: new opentype.Path()
+  });
+  const spaceGlyph = new opentype.Glyph({
+    name: 'space', unicode: 32, advanceWidth: Math.round(meta.unitsPerEm * 0.25),
+    path: new opentype.Path()
+  });
+
+  const glyphs = [notdef, spaceGlyph];
+
+  for (const [ch, g] of Object.entries(inst.glyphs)) {
+    if (g.u === 32) continue; // skip space, already added
+
+    const cutPaths = applyCuts(g.p, {
+      cutDir: params.cutDir,
+      cutWidth: params.cutWidth,
+      cutSpacing: params.cutSpacing,
+      cutOffset: params.cutOffset,
+    }, g.a);
+
+    const path = new opentype.Path();
+    for (const contour of cutPaths) {
+      if (contour.length < 3) continue;
+      path.moveTo(contour[0][0], contour[0][1]);
+      for (let i = 1; i < contour.length; i++) {
+        path.lineTo(contour[i][0], contour[i][1]);
+      }
+      path.close();
+    }
+
+    glyphs.push(new opentype.Glyph({
+      name: g.n,
+      unicode: g.u,
+      advanceWidth: g.a,
+      path: path,
+    }));
+  }
+
+  const styleName = params.cutDir === 'none' ? inst.name.replace('CK Sans ', '') :
+    inst.name.replace('CK Sans ', '') + ' Inline';
+
+  const font = new opentype.Font({
+    familyName: 'CK Sans',
+    styleName: styleName,
+    unitsPerEm: meta.unitsPerEm,
+    ascender: meta.ascender,
+    descender: meta.descender,
+    glyphs: glyphs,
+  });
+
+  font.download('CKSans-' + styleName.replace(/\s+/g, '') + '.otf');
+});
+
+// ─── Load Data ───
+fetch('./glyphs.json')
+  .then(r => r.json())
+  .then(data => { glyphData = data; })
+  .catch(e => console.error('Failed to load glyphs.json:', e));
+</script>
+</body>
+</html>
