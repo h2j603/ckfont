@@ -11,6 +11,12 @@
        url('./CKSans-Base.ttf') format('truetype');
   font-display: swap;
 }
+@font-face {
+  font-family: 'CK Sans Cut';
+  src: url('./CKSans-Cut.woff2') format('woff2'),
+       url('./CKSans-Cut.ttf') format('truetype');
+  font-display: swap;
+}
 
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16px; }
@@ -40,6 +46,12 @@ a:hover { text-decoration:underline; }
 <h1>CK Sans — ExtraBold Condensed</h1>
 
 <div class="preview" id="preview" style="font-size:72px;">
+  CONDENSED KIWI
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut — Modular</h1>
+
+<div class="preview" id="previewCut" style="font-size:72px; font-family:'CK Sans Cut',sans-serif;">
   CONDENSED KIWI
 </div>
 
@@ -77,12 +89,19 @@ const $ = id => document.getElementById(id);
 const preview = $('preview');
 
 function update() {
-  preview.textContent = $('text').value || 'CK SANS';
-  preview.style.fontSize = $('size').value + 'px';
-  preview.style.letterSpacing = $('spacing').value + 'px';
-  preview.style.lineHeight = $('leading').value + '%';
+  const txt = $('text').value || 'CK SANS';
+  const sz = $('size').value + 'px';
+  const ls = $('spacing').value + 'px';
+  const lh = $('leading').value + '%';
   const b = Math.round($('bright').value * 2.55);
-  preview.style.color = `rgb(${b},${b},${b})`;
+  const clr = `rgb(${b},${b},${b})`;
+  [preview, $('previewCut')].forEach(el => {
+    el.textContent = txt;
+    el.style.fontSize = sz;
+    el.style.letterSpacing = ls;
+    el.style.lineHeight = lh;
+    el.style.color = clr;
+  });
 }
 
 document.querySelectorAll('input').forEach(el => {
