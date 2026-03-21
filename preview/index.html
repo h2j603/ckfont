@@ -17,6 +17,18 @@
        url('./CKSans-Cut.ttf') format('truetype');
   font-display: swap;
 }
+@font-face {
+  font-family: 'CK Sans Regular';
+  src: url('./CKSans-Regular.woff2') format('woff2'),
+       url('./CKSans-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CK Sans Cut Regular';
+  src: url('./CKSans-Cut-Regular.woff2') format('woff2'),
+       url('./CKSans-Cut-Regular.ttf') format('truetype');
+  font-display: swap;
+}
 
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16px; }
@@ -49,9 +61,21 @@ a:hover { text-decoration:underline; }
   CONDENSED KIWI
 </div>
 
-<h1 style="margin-top:32px;">CK Sans Cut — Modular</h1>
+<h1 style="margin-top:32px;">CK Sans Regular</h1>
+
+<div class="preview" id="previewReg" style="font-size:72px; font-family:'CK Sans Regular',sans-serif;">
+  CONDENSED KIWI
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut — ExtraBold</h1>
 
 <div class="preview" id="previewCut" style="font-size:72px; font-family:'CK Sans Cut',sans-serif;">
+  CONDENSED KIWI
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut — Regular</h1>
+
+<div class="preview" id="previewCutReg" style="font-size:72px; font-family:'CK Sans Cut Regular',sans-serif;">
   CONDENSED KIWI
 </div>
 
@@ -95,7 +119,7 @@ function update() {
   const lh = $('leading').value + '%';
   const b = Math.round($('bright').value * 2.55);
   const clr = `rgb(${b},${b},${b})`;
-  [preview, $('previewCut')].forEach(el => {
+  [preview, $('previewReg'), $('previewCut'), $('previewCutReg')].forEach(el => {
     el.textContent = txt;
     el.style.fontSize = sz;
     el.style.letterSpacing = ls;
