@@ -41,6 +41,30 @@
        url('./CKSans-Cut-KR-Regular.ttf') format('truetype');
   font-display: swap;
 }
+@font-face {
+  font-family: 'CK Sans Cut JP EB';
+  src: url('./CKSans-Cut-JP-ExtraBold.woff2') format('woff2'),
+       url('./CKSans-Cut-JP-ExtraBold.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CK Sans Cut JP Reg';
+  src: url('./CKSans-Cut-JP-Regular.woff2') format('woff2'),
+       url('./CKSans-Cut-JP-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CK Sans Cut SC EB';
+  src: url('./CKSans-Cut-SC-ExtraBold.woff2') format('woff2'),
+       url('./CKSans-Cut-SC-ExtraBold.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CK Sans Cut SC Reg';
+  src: url('./CKSans-Cut-SC-Regular.woff2') format('woff2'),
+       url('./CKSans-Cut-SC-Regular.ttf') format('truetype');
+  font-display: swap;
+}
 
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#111; color:#eee; font-family:system-ui,sans-serif; padding:16px; }
@@ -94,13 +118,37 @@ a:hover { text-decoration:underline; }
 <h1 style="margin-top:32px;">CK Sans Cut KR — ExtraBold</h1>
 
 <div class="preview" id="previewCutKR" style="font-size:72px; font-family:'CK Sans Cut KR EB',sans-serif;">
-  응축된 키위 凝縮
+  응축된 키위 디자인
 </div>
 
 <h1 style="margin-top:32px;">CK Sans Cut KR — Regular</h1>
 
 <div class="preview" id="previewCutKRReg" style="font-size:72px; font-family:'CK Sans Cut KR Reg',sans-serif;">
-  응축된 키위 凝縮
+  응축된 키위 디자인
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut JP — ExtraBold</h1>
+
+<div class="preview" id="previewCutJP" style="font-size:72px; font-family:'CK Sans Cut JP EB',sans-serif;">
+  凝縮されたキウイ
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut JP — Regular</h1>
+
+<div class="preview" id="previewCutJPReg" style="font-size:72px; font-family:'CK Sans Cut JP Reg',sans-serif;">
+  凝縮されたキウイ
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut SC — ExtraBold</h1>
+
+<div class="preview" id="previewCutSC" style="font-size:72px; font-family:'CK Sans Cut SC EB',sans-serif;">
+  浓缩奇异果设计
+</div>
+
+<h1 style="margin-top:32px;">CK Sans Cut SC — Regular</h1>
+
+<div class="preview" id="previewCutSCReg" style="font-size:72px; font-family:'CK Sans Cut SC Reg',sans-serif;">
+  浓缩奇异果设计
 </div>
 
 <div class="controls">
@@ -143,7 +191,10 @@ function update() {
   const lh = $('leading').value + '%';
   const b = Math.round($('bright').value * 2.55);
   const clr = `rgb(${b},${b},${b})`;
-  [preview, $('previewReg'), $('previewCut'), $('previewCutReg'), $('previewCutKR'), $('previewCutKRReg')].forEach(el => {
+  [preview, $('previewReg'), $('previewCut'), $('previewCutReg'),
+   $('previewCutKR'), $('previewCutKRReg'),
+   $('previewCutJP'), $('previewCutJPReg'),
+   $('previewCutSC'), $('previewCutSCReg')].forEach(el => {
     if (!el) return;
     el.textContent = txt;
     el.style.fontSize = sz;
