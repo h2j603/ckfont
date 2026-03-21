@@ -203,8 +203,10 @@ CFF→TrueType 변환 직후, 저장 전에 이 한 줄을 추가한다.
 
 ### 소스 → 빌드 경로
 ```
-sources/NotoSans/NotoSansKR-Regular.otf  (CFF, sfntVersion=OTTO)
-    ↓ [CFF→TrueType 변환 — 수동, 스크립트 미존재]
+sources/NotoSans/NotoSansKR-Regular.otf  (CFF, 24,964 glyphs, sfntVersion=OTTO)
+    ↓ [1. CFF→TrueType 변환 — 수동 인라인 실행, 스크립트 미존재]
+    ↓ [2. 서브셋: 24,964 → 14,309 글리프 (한글 11,172 + 라틴 95 + 기호)]
+    ↓ [3. Condensed 스케일: x축 73.2% (wdth=62.5 상당)]
 build/CKSans-KR-Regular.ttf              (glyf, 그러나 sfntVersion=OTTO ❌)
     ↓ [modular_cut.py]
 build/CKSans-Cut-KR.ttf                  (glyf+cut, sfntVersion=OTTO ❌)
@@ -215,14 +217,26 @@ preview/CKSans-Cut-KR-v4.woff2           (서빙, sfntVersion=OTTO ❌)
 ### 라틴 폰트 (정상 작동)와의 비교
 ```
 sources/NotoSans/NotoSans[wdth,wght].ttf  (TrueType Variable, sfntVersion=\x00\x01\x00\x00)
-    ↓ [build_base.py — instancing]
+    ↓ [build_base.py — instancing (wdth=62.5, wght=400)]
 build/CKSans-Regular.ttf                   (glyf, sfntVersion=\x00\x01\x00\x00 ✅)
     ↓ [modular_cut.py]
 build/CKSans-Cut.ttf                       (glyf+cut, sfntVersion=\x00\x01\x00\x00 ✅)
 ```
 
-**차이점**: 라틴 소스는 이미 TrueType이므로 sfntVersion이 올바르다.
-CJK 소스는 CFF(OTF)에서 변환하므로 sfntVersion을 수동으로 바꿔야 한다.
+**핵심 차이**: 라틴 소스는 이미 TrueType(TTF)이므로 sfntVersion이 처음부터 올바르다.
+CJK 소스는 CFF(OTF)에서 변환되었으나, 이 변환이 스크립트 없이 이전 Claude 세션에서
+인라인으로 실행되었기 때문에 재현 불가능하며, sfntVersion 변경이 누락되었다.
+
+### CFF→TrueType 변환 시 수행된 작업 vs 누락된 작업
+| 작업 | 상태 | 비고 |
+|------|------|------|
+| CFF 3차 → TrueType 2차 곡선 변환 | ✅ 완료 | cu2quPen 사용 |
+| CFF 테이블 제거, glyf+loca 생성 | ✅ 완료 | |
+| 서브셋 (CJK Unified 제거) | ✅ 완료 | 24,964→14,309 글리프 |
+| Condensed 스케일링 | ✅ 완료 | x축 73.2% |
+| maxp 버전 0x5000→0x10000 | ✅ 수정됨 | commit `fa6a8d9` |
+| VORG 테이블 제거 | ⚠️ 부분 수정 | commit `07d3bc9`, 일부 파일 미적용 |
+| **sfntVersion OTTO→\x00\x01\x00\x00** | **❌ 누락** | **근본 원인** |
 
 ---
 
