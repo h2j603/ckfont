@@ -153,25 +153,34 @@ function lineIntersect(a1, a2, b1, b2) {
 function offsetPolygon(poly, dist) {
   if (poly.length < 3 || dist === 0) return poly.map(p => [p[0], p[1]]);
 
-  const clipperPath = poly.map(p => ({ X: Math.round(p[0]), Y: Math.round(p[1]) }));
+  try {
+    // 와인딩 반전 (폰트→Clipper 규칙)
+    const clipperPath = poly.map(p => ({ X: Math.round(p[0]), Y: Math.round(p[1]) }));
+    clipperPath.reverse();
 
-  const co = new ClipperLib.ClipperOffset();
-  co.AddPath(clipperPath, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    const co = new ClipperLib.ClipperOffset();
+    co.MiterLimit = 2;
+    co.ArcTolerance = 5;
+    co.AddPath(clipperPath, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
 
-  const solution = new ClipperLib.Paths();
-  co.Execute(solution, dist);
+    const solution = new ClipperLib.Paths();
+    co.Execute(solution, dist);
 
-  if (solution.length === 0) return [];
+    if (solution.length === 0) return [];
 
-  // Return the largest result path (by area)
-  let best = solution[0];
-  let bestArea = 0;
-  for (const s of solution) {
-    const a = Math.abs(ClipperLib.Clipper.Area(s));
-    if (a > bestArea) { bestArea = a; best = s; }
+    let best = solution[0];
+    let bestArea = 0;
+    for (const s of solution) {
+      const a = Math.abs(ClipperLib.Clipper.Area(s));
+      if (a > bestArea) { bestArea = a; best = s; }
+    }
+
+    const result = best.map(p => [p.X, p.Y]);
+    result.reverse(); // 다시 폰트 와인딩으로
+    return result;
+  } catch (e) {
+    return poly.map(p => [p[0], p[1]]);
   }
-
-  return best.map(p => [p.X, p.Y]);
 }
 
 function offsetPaths(paths, dist) {
@@ -179,9 +188,13 @@ function offsetPaths(paths, dist) {
   const copy = paths.map(p => p.map(pt => [pt[0], pt[1]]));
 
   try {
-    const clipperPaths = paths.map(p =>
-      p.map(pt => ({ X: Math.round(pt[0]), Y: Math.round(pt[1]) }))
-    );
+    // 폰트 컨투어는 외곽=CW(음수 면적), 카운터=CCW(양수 면적)
+    // Clipper는 외곽=CCW, hole=CW를 기대 → 와인딩 반전 필요
+    const clipperPaths = paths.map(p => {
+      const cp = p.map(pt => ({ X: Math.round(pt[0]), Y: Math.round(pt[1]) }));
+      cp.reverse();
+      return cp;
+    });
 
     const co = new ClipperLib.ClipperOffset();
     co.MiterLimit = 2;
@@ -193,7 +206,12 @@ function offsetPaths(paths, dist) {
     const solution = new ClipperLib.Paths();
     co.Execute(solution, dist);
 
-    const result = solution.map(s => s.map(p => [p.X, p.Y])).filter(p => p.length >= 3);
+    // 결과를 다시 폰트 와인딩으로 반전
+    const result = solution.map(s => {
+      const pts = s.map(p => [p.X, p.Y]);
+      pts.reverse();
+      return pts;
+    }).filter(p => p.length >= 3);
     return result.length > 0 ? result : copy;
   } catch (e) {
     return copy; // 실패 시 원본 반환
