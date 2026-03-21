@@ -165,6 +165,63 @@ def update_metrics(font, config):
         print(f"  Global tracking adjusted by {tracking}")
 
 
+def update_os2_classes(font, config):
+    """OS/2 테이블의 usWidthClass, usWeightClass를 CK 기본값에 맞게 수정."""
+    if "OS/2" not in font:
+        return
+
+    os2 = font["OS/2"]
+    axes = config.get("axes", {})
+
+    # usWeightClass: 기본 Weight에 맞게
+    default_wght = axes.get("wght", {}).get("default")
+    if default_wght:
+        old = os2.usWeightClass
+        os2.usWeightClass = int(default_wght)
+        print(f"  usWeightClass: {old} → {os2.usWeightClass}")
+
+    # usWidthClass: wdth 값 → OS/2 usWidthClass 매핑
+    wdth_to_class = {
+        50: 1,     # Ultra-condensed
+        62.5: 2,   # Extra-condensed
+        75: 3,     # Condensed
+        87.5: 4,   # Semi-condensed
+        100: 5,    # Medium (normal)
+        112.5: 6,  # Semi-expanded
+        125: 7,    # Expanded
+        150: 8,    # Extra-expanded
+        200: 9,    # Ultra-expanded
+    }
+    default_wdth = axes.get("wdth", {}).get("default")
+    if default_wdth and default_wdth in wdth_to_class:
+        old = os2.usWidthClass
+        os2.usWidthClass = wdth_to_class[default_wdth]
+        print(f"  usWidthClass: {old} → {os2.usWidthClass} (wdth={default_wdth})")
+
+
+def strip_hints(font):
+    """힌팅 데이터 제거. 글리프 수정 후 무효화된 힌트를 정리한다."""
+    hint_tables = ["fpgm", "prep", "cvt ", "hdmx", "LTSH", "VDMX", "gasp"]
+    removed = []
+    for table_tag in hint_tables:
+        if table_tag in font:
+            del font[table_tag]
+            removed.append(table_tag)
+
+    # glyf 테이블의 개별 글리프 힌트도 제거
+    if "glyf" in font:
+        glyf = font["glyf"]
+        for glyph_name in font.getGlyphOrder():
+            glyph = glyf[glyph_name]
+            if hasattr(glyph, "program") and glyph.program:
+                glyph.program = None
+
+    if removed:
+        print(f"  Hints stripped: {', '.join(removed)}")
+    else:
+        print(f"  Hints: already clean")
+
+
 def main(info_only=False):
     config = load_config()
 
@@ -202,6 +259,12 @@ def main(info_only=False):
 
     # 4. 메트릭 수정
     update_metrics(font, config)
+
+    # 5. OS/2 클래스 수정
+    update_os2_classes(font, config)
+
+    # 6. 힌팅 제거
+    strip_hints(font)
 
     # 저장
     BUILD_DIR.mkdir(parents=True, exist_ok=True)

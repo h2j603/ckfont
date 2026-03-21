@@ -71,10 +71,28 @@ metrics:
 # 각 항목은 개별 글리프의 형태 수정을 정의
 # 실제 수정은 사용자와 논의 후 구체화
 glyph_modifications: []
-  # 예시 형식:
+  # 지원 액션:
+  #
+  # 1. move_point — 특정 포인트 좌표 이동 (gvar 자동 보존)
+  #   - action: "move_point"
+  #     contour: 0          # 컨투어 인덱스
+  #     point: 2            # 컨투어 내 포인트 인덱스
+  #     dx: 0               # x 이동량
+  #     dy: 10              # y 이동량
+  #
+  # 2. scale — 글리프 전체 스케일링 (gvar 델타도 비례 조정)
+  #   - action: "scale"
+  #     sx: 0.95            # x축 스케일 (1.0 = 변화 없음)
+  #     sy: 1.0             # y축 스케일
+  #
+  # 3. adjust_metrics — advance width / LSB 수정
+  #   - action: "adjust_metrics"
+  #     dwidth: -20         # advance width 변화량
+  #     dlsb: 0             # left side bearing 변화량
+  #
+  # 예시:
   # - glyph: "A"
   #   unicode: 0x0041
-  #   type: "geometric"        # geometric | organic | custom
   #   description: "상단 꼭짓점 각도 조정"
   #   operations:
   #     - action: "move_point"
@@ -82,6 +100,11 @@ glyph_modifications: []
   #       point: 2
   #       dx: 0
   #       dy: 10
+  #
+  # ⚠ 주의사항:
+  # - 포인트 추가/삭제 금지 (gvar 불일치)
+  # - 컴포지트 글리프는 자동 분해됨
+  # - 'make dump GLYPHS="A"'로 좌표 먼저 확인
 
 # 빌드 출력 설정
 output:
