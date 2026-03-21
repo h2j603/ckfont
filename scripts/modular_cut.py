@@ -34,8 +34,12 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = ROOT / "build"
-BASE_PATH = BUILD_DIR / "CKSans-Base.ttf"
-OUT_NAME = "CKSans-Cut"
+
+# 처리할 인스턴스: (입력 파일명, 출력 파일명, 폰트 이름 접미사)
+INSTANCES = [
+    ("CKSans-Base.ttf",    "CKSans-Cut.ttf",         "Cut ExtraBold"),
+    ("CKSans-Regular.ttf", "CKSans-Cut-Regular.ttf",  "Cut Regular"),
+]
 
 # ── 커팅 대상 ──
 CUT_TARGETS = set()
@@ -198,35 +202,21 @@ def modules_to_ttglyph(modules, radius, glyf_table):
         return None
 
 
-def main():
-    dry_run = "--dry-run" in sys.argv
-    module_w = 50
-    gap = 22
-    radius = 25
+def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
+    """하나의 폰트 인스턴스에 모듈러 컷 적용."""
+    if not input_path.exists():
+        print(f"  Skip: {input_path.name} not found")
+        return
 
-    # 인자 파싱
-    args = sys.argv[1:]
-    for i, arg in enumerate(args):
-        if arg == "--module-w" and i + 1 < len(args):
-            module_w = int(args[i + 1])
-        elif arg == "--gap" and i + 1 < len(args):
-            gap = int(args[i + 1])
-        elif arg == "--radius" and i + 1 < len(args):
-            radius = int(args[i + 1])
-
-    pitch = module_w + gap
-
-    if not BASE_PATH.exists():
-        print(f"Error: {BASE_PATH} not found. Run 'make base' first.")
-        sys.exit(1)
-
-    font = TTFont(str(BASE_PATH))
+    font = TTFont(str(input_path))
     glyf = font["glyf"]
     cmap = font.getBestCmap()
     gs = font.getGlyphSet()
     hmtx = font["hmtx"]
 
-    print(f"Modular cut: module_w={module_w}, gap={gap}, radius={radius}, pitch={pitch}")
+    pitch = module_w + gap
+    print(f"\n── {input_path.name} → {output_path.name} ──")
+    print(f"  module_w={module_w}, gap={gap}, radius={radius}, pitch={pitch}")
 
     modified = 0
     errors = 0
@@ -243,17 +233,14 @@ def main():
         if char in SKIP_GLYPHS:
             continue
 
-        # 너무 좁은 글리프는 스킵
         glyph_w = g.xMax - g.xMin
         if glyph_w < module_w:
             continue
 
         try:
-            # 글리프 → pathops Path
             glyph_path = pathops.Path()
             gs[glyph_name].draw(glyph_path.getPen())
 
-            # 모듈 추출
             modules = extract_modules(
                 glyph_path, g, module_w, gap, hmtx[glyph_name]
             )
@@ -261,10 +248,8 @@ def main():
             if not modules:
                 continue
 
-            # 모듈 → 둥근 사각형 TTGlyph
             new_glyph = modules_to_ttglyph(modules, radius, glyf)
             if new_glyph is None:
-                print(f"  '{char}': build failed")
                 errors += 1
                 continue
 
@@ -276,47 +261,64 @@ def main():
             print(f"  '{char}': error — {e}")
             errors += 1
 
-    print(f"\nModified {modified} glyph(s), {errors} error(s).")
-
-    if dry_run:
-        print("[Dry run — not saved]")
-        font.close()
-        return
+    print(f"  Modified {modified} glyph(s), {errors} error(s).")
 
     # 이름 변경
     name_table = font["name"]
     for record in name_table.names:
         text = record.toUnicode()
         if "CK Sans" in text:
-            new_text = text.replace("CK Sans", "CK Sans Cut")
+            new_text = text.replace("CK Sans", f"CK Sans {name_suffix}")
             name_table.setName(
                 new_text, record.nameID, record.platformID,
                 record.platEncID, record.langID,
             )
 
     # 저장
-    ttf_path = BUILD_DIR / f"{OUT_NAME}.ttf"
-    font.save(str(ttf_path))
+    font.save(str(output_path))
     font.close()
-    print(f"Saved: {ttf_path}")
+    print(f"  Saved: {output_path}")
 
     # WOFF2
-    woff2_path = BUILD_DIR / f"{OUT_NAME}.woff2"
-    woff2_font = TTFont(str(ttf_path))
+    woff2_path = output_path.with_suffix(".woff2")
+    woff2_font = TTFont(str(output_path))
     woff2_font.flavor = "woff2"
     woff2_font.save(str(woff2_path))
     woff2_font.close()
-    print(f"WOFF2: {woff2_path.name}")
+    print(f"  WOFF2: {woff2_path.name}")
 
     # preview 복사
     preview_dir = ROOT / "preview"
     if preview_dir.exists():
-        shutil.copy2(ttf_path, preview_dir / ttf_path.name)
+        shutil.copy2(output_path, preview_dir / output_path.name)
         shutil.copy2(woff2_path, preview_dir / woff2_path.name)
-        print("Copied to preview/")
+        print(f"  Copied to preview/")
 
-    sz = ttf_path.stat().st_size // 1024
-    print(f"TTF: {sz}KB")
+
+def main():
+    dry_run = "--dry-run" in sys.argv
+    module_w = 50
+    gap = 22
+    radius = 25
+
+    # 인자 파싱
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--module-w" and i + 1 < len(args):
+            module_w = int(args[i + 1])
+        elif arg == "--gap" and i + 1 < len(args):
+            gap = int(args[i + 1])
+        elif arg == "--radius" and i + 1 < len(args):
+            radius = int(args[i + 1])
+
+    if dry_run:
+        print("[Dry run mode]")
+        return
+
+    for in_name, out_name, name_suffix in INSTANCES:
+        input_path = BUILD_DIR / in_name
+        output_path = BUILD_DIR / out_name
+        process_font(input_path, output_path, name_suffix, module_w, gap, radius)
 
 
 if __name__ == "__main__":

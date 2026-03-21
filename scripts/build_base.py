@@ -23,12 +23,15 @@ SOURCES_DIR = ROOT / "sources" / "NotoSans"
 BUILD_DIR = ROOT / "build"
 PREVIEW_DIR = ROOT / "preview"
 
-# CK Sans 베이스 좌표: Condensed ExtraBold
-BASE_COORDS = {"wdth": 75, "wght": 800}
+# CK Sans 인스턴스 정의
+# (파일명 접미사, wdth, wght, 스타일명)
+INSTANCES = [
+    ("Base",        62.5, 800, "ExtraBold"),
+    ("Regular",     62.5, 400, "Regular"),
+]
 
 FAMILY_NAME = "CK Sans"
-STYLE_NAME = "ExtraBold"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 def find_source():
@@ -43,24 +46,24 @@ def find_source():
     sys.exit(1)
 
 
-def instance_font(source_path):
+def instance_font(source_path, wdth, wght):
     """Variable Font에서 정적 인스턴스 추출."""
-    print(f"  Instancing: wdth={BASE_COORDS['wdth']}, wght={BASE_COORDS['wght']}")
+    print(f"  Instancing: wdth={wdth}, wght={wght}")
     font = TTFont(str(source_path))
-    instantiateVariableFont(font, BASE_COORDS, inplace=True)
+    instantiateVariableFont(font, {"wdth": wdth, "wght": wght}, inplace=True)
     return font
 
 
-def rename_font(font):
+def rename_font(font, style_name):
     """폰트 이름을 CK Sans로 변경."""
     name_table = font["name"]
-    full_name = f"{FAMILY_NAME} {STYLE_NAME}"
+    full_name = f"{FAMILY_NAME} {style_name}"
     ps_name = full_name.replace(" ", "-")
 
     entries = {
         0: f"Copyright 2024 Condensed Kiwi. Based on Noto Sans (OFL).",
         1: FAMILY_NAME,
-        2: STYLE_NAME,
+        2: style_name,
         3: f"{ps_name}-{VERSION}",
         4: full_name,
         5: f"Version {VERSION}",
@@ -69,7 +72,7 @@ def rename_font(font):
         9: "Condensed Kiwi",
         13: "SIL Open Font License 1.1",
         16: FAMILY_NAME,
-        17: STYLE_NAME,
+        17: style_name,
     }
 
     for name_id, value in entries.items():
@@ -140,37 +143,37 @@ def print_info(font_path):
     font.close()
 
 
-def main():
-    source_path = find_source()
-    print(f"Source: {source_path.name}")
+def build_instance(source_path, suffix, wdth, wght, style_name):
+    """하나의 인스턴스 빌드."""
+    print(f"\n── {FAMILY_NAME} {style_name} (wdth={wdth}, wght={wght}) ──")
 
-    # 1. 정적 인스턴스 추출
-    font = instance_font(source_path)
-
-    # 2. 이름 변경
-    rename_font(font)
-
-    # 3. 힌팅 제거
+    font = instance_font(source_path, wdth, wght)
+    rename_font(font, style_name)
     strip_hints(font)
 
-    # 4. 저장
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    ttf_path = BUILD_DIR / "CKSans-Base.ttf"
+    ttf_path = BUILD_DIR / f"CKSans-{suffix}.ttf"
     font.save(str(ttf_path))
     font.close()
     print(f"  TTF: {ttf_path.name} ({ttf_path.stat().st_size / 1024:.0f} KB)")
 
-    # 5. WOFF2
     woff2_path = build_woff2(ttf_path)
 
-    # 6. Preview에 복사
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy2(woff2_path, PREVIEW_DIR / woff2_path.name)
     shutil.copy2(ttf_path, PREVIEW_DIR / ttf_path.name)
     print(f"  Copied to preview/")
 
-    # 7. 정보 출력
     print_info(ttf_path)
+    return ttf_path
+
+
+def main():
+    source_path = find_source()
+    print(f"Source: {source_path.name}")
+
+    for suffix, wdth, wght, style_name in INSTANCES:
+        build_instance(source_path, suffix, wdth, wght, style_name)
 
 
 if __name__ == "__main__":

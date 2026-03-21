@@ -7,10 +7,9 @@ all: base cut
 download:
 	python3 scripts/download_source.py
 
-# 베이스 폰트 빌드 (인스턴싱 → 터미널 라운딩 → WOFF2)
+# 베이스 폰트 빌드 (인스턴싱 → WOFF2)
 base:
 	python3 scripts/build_base.py
-	python3 scripts/round_terminals.py
 
 # 모듈러 컷 변형 (베이스 기반)
 cut: base
@@ -38,4 +37,4 @@ clean:
 	@echo "Cleaned."
 
 # 풀 리빌드
-rebuild: clean base
+rebuild: clean all
