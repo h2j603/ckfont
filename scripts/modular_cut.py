@@ -41,6 +41,10 @@ INSTANCES = [
     ("CKSans-Regular.ttf",       "CKSans-Cut-Regular.ttf",       "Cut Regular"),
     ("CKSans-KR-ExtraBold.ttf",  "CKSans-Cut-KR-ExtraBold.ttf", "Cut KR ExtraBold"),
     ("CKSans-KR-Regular.ttf",    "CKSans-Cut-KR-Regular.ttf",    "Cut KR Regular"),
+    ("CKSans-JP-ExtraBold.ttf",  "CKSans-Cut-JP-ExtraBold.ttf", "Cut JP ExtraBold"),
+    ("CKSans-JP-Regular.ttf",    "CKSans-Cut-JP-Regular.ttf",    "Cut JP Regular"),
+    ("CKSans-SC-ExtraBold.ttf",  "CKSans-Cut-SC-ExtraBold.ttf", "Cut SC ExtraBold"),
+    ("CKSans-SC-Regular.ttf",    "CKSans-Cut-SC-Regular.ttf",    "Cut SC Regular"),
 ]
 
 # ── 커팅 대상: 폰트 내 모든 비-공백 글리프 ──
