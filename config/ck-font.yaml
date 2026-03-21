@@ -32,30 +32,15 @@ axes:
 
 # Named Instance (자주 쓰는 조합을 프리셋으로 정의)
 instances:
-  - name: "CK Sans Condensed Bold"
-    coordinates:
-      wght: 700
-      wdth: 75
-
-  - name: "CK Sans Condensed ExtraBold"
-    coordinates:
-      wght: 800
-      wdth: 75
-
-  - name: "CK Sans Condensed Black"
-    coordinates:
-      wght: 900
-      wdth: 75
-
-  - name: "CK Sans Compressed Bold"
-    coordinates:
-      wght: 700
-      wdth: 62.5
-
   - name: "CK Sans Regular"
     coordinates:
       wght: 400
-      wdth: 87.5
+      wdth: 75
+
+  - name: "CK Sans ExtraBold"
+    coordinates:
+      wght: 800
+      wdth: 75
 
 # 타이포그래피 메트릭 수정
 metrics:
