@@ -516,9 +516,9 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    module_w = 65
-    gap = 25
-    radius = 32
+    module_w = 120
+    gap = 40
+    radius = 55
 
     # 인자 파싱
     args = sys.argv[1:]
