@@ -291,6 +291,20 @@ def rename_font(font, style_name):
         name_table.setName(value, name_id, 3, 1, 0x0409)
         name_table.setName(value, name_id, 1, 0, 0)
 
+    # 나머지 모든 name 레코드에서 'Noto' 잔존 제거 (OFL Reserved Name)
+    for record in name_table.names:
+        text = record.toUnicode()
+        if "Noto" in text and record.nameID not in entries:
+            cleaned = text.replace("Noto Sans CJK", "CK Sans")
+            cleaned = cleaned.replace("NotoSansCJK", "CKSans")
+            cleaned = cleaned.replace("Noto Sans", "CK Sans")
+            cleaned = cleaned.replace("NotoSans", "CKSans")
+            cleaned = cleaned.replace("Noto", "CK")
+            name_table.setName(
+                cleaned, record.nameID, record.platformID,
+                record.platEncID, record.langID,
+            )
+
     print(f"  Renamed: {full_name}")
 
 
