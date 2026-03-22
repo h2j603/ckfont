@@ -23,7 +23,6 @@ import sys
 from pathlib import Path
 
 from fontTools.ttLib import TTFont
-from fontTools.pens.t2Pen import T2Pen
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -251,10 +250,10 @@ def apply_condensed_scale(font, x_scale):
 
         if g.numberOfContours > 0 and hasattr(g, 'coordinates'):
             coords = g.coordinates
-            new_coords = []
-            for x, y in coords:
-                new_coords.append((int(round(x * x_scale)), y))
-            g.coordinates = new_coords
+            new_coords = [(int(round(x * x_scale)), y) for x, y in coords]
+            # GlyphCoordinates 타입 유지
+            from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+            g.coordinates = GlyphCoordinates(new_coords)
 
             # bbox 재계산
             if new_coords:

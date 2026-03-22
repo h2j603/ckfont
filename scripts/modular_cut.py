@@ -31,6 +31,7 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
+from fontTools.pens.transformPen import TransformPen
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = ROOT / "build"
@@ -60,6 +61,40 @@ SKIP_CODEPOINTS = {
 # 최소 모듈 크기 (이보다 작으면 무시)
 MIN_MODULE_W = 10
 MIN_MODULE_H = 20  # 짧은 건 정원(원)으로 표현하므로 낮게
+
+
+def compute_mono_aw(cmap, glyf, hmtx, pitch):
+    """폰트 내 모든 처리 대상 글리프의 모노스페이스 advance width 계산.
+
+    최대 snapped AW를 사용하여 가장 넓은 글리프도 수용.
+    극단적 아웃라이어(상위 2%)는 제외.
+    """
+    snapped_aws = []
+    for cp, glyph_name in sorted(cmap.items()):
+        if cp in SKIP_CODEPOINTS:
+            continue
+        if glyph_name not in glyf:
+            continue
+        g = glyf[glyph_name]
+        if g.isComposite() or g.numberOfContours <= 0:
+            continue
+        if not hasattr(g, 'xMax') or g.xMax is None:
+            continue
+        glyph_w = g.xMax - g.xMin
+        if glyph_w < MIN_MODULE_W:
+            continue
+
+        adv_w = hmtx[glyph_name][0]
+        n = max(1, round(adv_w / pitch))
+        snapped_aws.append(n * pitch)
+
+    if not snapped_aws:
+        return None
+
+    # 상위 98% 지점 사용 (극단적 합자 등 제외)
+    snapped_aws.sort()
+    idx = min(len(snapped_aws) - 1, int(len(snapped_aws) * 0.98))
+    return snapped_aws[idx]
 
 
 def circle_path(cx, cy, r):
@@ -111,23 +146,23 @@ def rounded_rect_path(x0, y0, x1, y1, r):
     return path
 
 
-def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry):
+def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=None):
     """글리프에서 모듈 bbox 목록 추출.
 
     pathops INTERSECTION: 컬럼 직사각형과 글리프의 boolean 교차.
     카운터(D, O, B 내부 구멍)를 정확히 처리.
 
-    Monospaced 그리드: advance width를 pitch 배수로 스냅하여
-    같은 AW 그룹의 글리프들이 동일한 컬럼 그리드를 공유.
+    mono_aw가 주어지면 고정 그리드를 사용하여 모든 글리프가
+    동일한 컬럼 위치를 공유. 스템 너비 → 바 수 일관성 확보.
     """
     pitch = module_w + gap
 
-    # advance width 기준 그리드 (pitch 배수로 스냅)
-    adv_w = hmtx_entry[0]
-    n_cols = max(1, round(adv_w / pitch))
-    snapped_w = n_cols * pitch  # 스냅된 advance width
-    grid_cx = adv_w / 2  # 원래 AW 중심 기준
+    # 모노스페이스: 고정 AW 기준 그리드 / 일반: 글리프 AW 기준
+    effective_aw = mono_aw if mono_aw else hmtx_entry[0]
+    n_cols = max(1, round(effective_aw / pitch))
 
+    # 고정 그리드: effective_aw 중심 기준 (모노스페이스면 모든 글리프 동일)
+    grid_cx = effective_aw / 2
     total_grid_w = n_cols * module_w + (n_cols - 1) * gap
     grid_start = grid_cx - total_grid_w / 2
 
@@ -213,8 +248,88 @@ def modules_to_ttglyph(modules, radius, glyf_table):
         return None
 
 
+def merge_straddling_modules(modules, module_w, gap):
+    """2차 보정: 같은 컬럼 스트라이프에서 인접 모듈 병합.
+
+    스템이 컬럼 경계에 걸렸을 때 발생하는 얇은 파편 모듈을 제거.
+    인접한 두 컬럼의 모듈이 y범위가 80% 이상 겹치면,
+    커버리지가 작은 쪽을 큰 쪽에 병합 (큰 쪽의 y범위로 확장).
+    """
+    if not modules:
+        return modules
+
+    pitch = module_w + gap
+
+    # 컬럼 인덱스별로 그룹화
+    col_modules = {}
+    for x0, y0, x1, y1 in modules:
+        col_idx = round(x0 / pitch)
+        col_modules.setdefault(col_idx, []).append((x0, y0, x1, y1))
+
+    sorted_cols = sorted(col_modules.keys())
+    merged = set()  # 병합되어 제거할 모듈 인덱스
+
+    result = list(modules)
+
+    for i in range(len(sorted_cols) - 1):
+        ci = sorted_cols[i]
+        cj = sorted_cols[i + 1]
+
+        # 인접 컬럼만 (1칸 차이)
+        if cj - ci != 1:
+            continue
+
+        mods_i = col_modules[ci]
+        mods_j = col_modules[cj]
+
+        for mi in mods_i:
+            for mj in mods_j:
+                # y범위 겹침 비율 계산
+                overlap_y0 = max(mi[1], mj[1])
+                overlap_y1 = min(mi[3], mj[3])
+                if overlap_y1 <= overlap_y0:
+                    continue
+
+                overlap_h = overlap_y1 - overlap_y0
+                h_i = mi[3] - mi[1]
+                h_j = mj[3] - mj[1]
+                min_h = min(h_i, h_j)
+
+                # 80% 이상 겹침 → 같은 스템으로 판단
+                if overlap_h / min_h < 0.8:
+                    continue
+
+                # 짧은 쪽(파편) 제거, 긴 쪽의 y범위 확장
+                if h_i <= h_j:
+                    # mi가 파편 → 제거하고 mj의 y범위 확장
+                    if mi in result:
+                        result.remove(mi)
+                    idx_j = result.index(mj) if mj in result else -1
+                    if idx_j >= 0:
+                        ext_y0 = min(mi[1], mj[1])
+                        ext_y1 = max(mi[3], mj[3])
+                        result[idx_j] = (mj[0], ext_y0, mj[2], ext_y1)
+                else:
+                    if mj in result:
+                        result.remove(mj)
+                    idx_i = result.index(mi) if mi in result else -1
+                    if idx_i >= 0:
+                        ext_y0 = min(mi[1], mj[1])
+                        ext_y1 = max(mi[3], mj[3])
+                        result[idx_i] = (mi[0], ext_y0, mi[2], ext_y1)
+
+    return result
+
+
 def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
-    """하나의 폰트 인스턴스에 모듈러 컷 적용."""
+    """하나의 폰트 인스턴스에 모듈러 컷 적용.
+
+    모노스페이스 모드:
+      1. 모든 글리프의 AW를 고정값(mono_aw)으로 통일
+      2. 각 글리프를 mono_aw 중앙에 센터링 (TransformPen)
+      3. 고정 그리드로 모든 글리프가 동일한 컬럼 위치 공유
+      4. 2차 보정으로 스템 경계 파편 모듈 병합
+    """
     if not input_path.exists():
         print(f"  Skip: {input_path.name} not found")
         return
@@ -227,12 +342,12 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
     pitch = module_w + gap
 
-    # Monospaced: 글리프별 advance width → 가장 가까운 pitch 배수로 스냅
-    # 같은 폭의 글리프끼리 동일한 그리드를 공유 → 동일 스템 = 동일 바 수
-    # 최대 AW는 쓰지 않음 (합자 등 극단값 제외)
+    # ── 모노스페이스 AW 계산 ──
+    mono_aw = compute_mono_aw(cmap, glyf, hmtx, pitch)
 
     print(f"\n── {input_path.name} → {output_path.name} ──")
     print(f"  module_w={module_w}, gap={gap}, radius={radius}, pitch={pitch}")
+    print(f"  mono_aw={mono_aw} ({mono_aw // pitch} cols)")
 
     modified = 0
     errors = 0
@@ -250,23 +365,35 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
         if not hasattr(g, 'xMax') or g.xMax is None:
             continue
         glyph_w = g.xMax - g.xMin
-        if glyph_w < module_w:
+        if glyph_w < MIN_MODULE_W:
             continue
         glyph_h = g.yMax - g.yMin
         if glyph_h < MIN_MODULE_H:
             continue
 
         try:
-            glyph_path = pathops.Path()
-            gs[glyph_name].draw(glyph_path.getPen())
+            # ── 글리프 센터링: 시각적 중심을 mono_aw/2에 맞춤 ──
+            glyph_visual_cx = (g.xMin + g.xMax) / 2
+            target_cx = mono_aw / 2
+            shift_x = target_cx - glyph_visual_cx
 
-            adv_w = hmtx[glyph_name][0]
+            glyph_path = pathops.Path()
+            transform_pen = TransformPen(
+                glyph_path.getPen(),
+                (1, 0, 0, 1, shift_x, 0),  # x방향 이동
+            )
+            gs[glyph_name].draw(transform_pen)
+
             modules = extract_modules(
                 glyph_path, g, module_w, gap, hmtx[glyph_name],
+                mono_aw=mono_aw,
             )
 
             if not modules:
                 continue
+
+            # ── 2차 보정: 스템 경계 파편 모듈 병합 ──
+            modules = merge_straddling_modules(modules, module_w, gap)
 
             new_glyph = modules_to_ttglyph(modules, radius, glyf)
             if new_glyph is None:
@@ -274,15 +401,12 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
                 continue
 
             glyf[glyph_name] = new_glyph
-            # advance width를 pitch 스냅 값으로 통일
-            n = max(1, round(adv_w / pitch))
-            snapped_aw = n * pitch
-            _, lsb = hmtx[glyph_name]
-            hmtx[glyph_name] = (snapped_aw, lsb)
+            # 모노스페이스: 모든 글리프 동일 AW
+            new_lsb = new_glyph.xMin if hasattr(new_glyph, 'xMin') and new_glyph.xMin is not None else 0
+            hmtx[glyph_name] = (mono_aw, new_lsb)
             modified += 1
 
         except Exception as e:
-            errors += 1
             errors += 1
 
     print(f"  Modified {modified} glyph(s), {errors} error(s).")
