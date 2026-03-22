@@ -147,13 +147,13 @@ def rounded_rect_path(x0, y0, x1, y1, r):
 
 
 def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=None):
-    """글리프에서 모듈 bbox 목록 추출.
+    """글리프에서 모듈 bbox 목록 추출 — 커버리지 정보 포함.
 
     pathops INTERSECTION: 컬럼 직사각형과 글리프의 boolean 교차.
     카운터(D, O, B 내부 구멍)를 정확히 처리.
 
-    mono_aw가 주어지면 고정 그리드를 사용하여 모든 글리프가
-    동일한 컬럼 위치를 공유. 스템 너비 → 바 수 일관성 확보.
+    반환: [(x0, y0, x1, y1, coverage), ...]
+    coverage: 컬럼 내 x방향 채움 비율 (0.0~1.0)
     """
     pitch = module_w + gap
 
@@ -193,7 +193,7 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=No
         except Exception:
             continue
 
-        # 결과 컨투어 → 모듈 bbox
+        # 결과 컨투어 → 모듈 bbox + 커버리지
         rec = RecordingPen()
         result.draw(rec)
 
@@ -204,11 +204,15 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=No
             elif op_name in ("lineTo", "curveTo", "qCurveTo"):
                 cur_pts.extend(args)
             elif op_name == "closePath" and cur_pts:
-                ys = [p[1] for p in cur_pts]
-                bh = max(ys) - min(ys)
-                if bh >= MIN_MODULE_H:
-                    # 바 너비 고정, y만 교차 결과에서
-                    modules.append((col_x, min(ys), col_x + module_w, max(ys)))
+                valid_pts = [p for p in cur_pts if p is not None]
+                if valid_pts:
+                    xs = [p[0] for p in valid_pts]
+                    ys = [p[1] for p in valid_pts]
+                    seg_w = max(xs) - min(xs)
+                    seg_h = max(ys) - min(ys)
+                    if seg_h >= MIN_MODULE_H:
+                        coverage = min(1.0, seg_w / module_w)
+                        modules.append((col_x, min(ys), col_x + module_w, max(ys), coverage))
                 cur_pts = []
 
     return modules
@@ -248,75 +252,126 @@ def modules_to_ttglyph(modules, radius, glyf_table):
         return None
 
 
-def merge_straddling_modules(modules, module_w, gap):
-    """2차 보정: 같은 컬럼 스트라이프에서 인접 모듈 병합.
+def quantize_stems(modules, module_w, gap):
+    """2차 보정: 커버리지 기반 스템 정규화.
 
-    스템이 컬럼 경계에 걸렸을 때 발생하는 얇은 파편 모듈을 제거.
-    인접한 두 컬럼의 모듈이 y범위가 80% 이상 겹치면,
-    커버리지가 작은 쪽을 큰 쪽에 병합 (큰 쪽의 y범위로 확장).
+    스템이 컬럼 경계에 걸려서 양쪽에 얇은 슬리버로 분할되는 문제를 해결.
+    같은 너비의 세로 획이 항상 같은 수의 컬럼을 차지하도록 보장.
+
+    알고리즘:
+      1. 각 모듈의 커버리지(x방향 채움 비율) 확인
+      2. 저커버리지(< SLIVER_THRESHOLD) 모듈 = 슬리버(파편)로 판정
+      3. 인접 컬럼에 같은 y범위의 고커버리지 모듈이 있으면:
+         → 슬리버 제거, 인접 모듈의 y범위 확장
+      4. 양쪽 모두 저커버리지면 (스템이 정확히 경계 위):
+         → 둘 중 커버리지가 높은 쪽 유지, 나머지 제거
+
+    coverage 기반이므로 스템 너비에 관계없이 일관된 결과 보장.
     """
-    if not modules:
-        return modules
+    if len(modules) < 2:
+        return [(m[0], m[1], m[2], m[3]) for m in modules]
 
     pitch = module_w + gap
+    SLIVER_THRESHOLD = 0.55  # 이 미만이면 슬리버(파편)으로 판단
 
-    # 컬럼 인덱스별로 그룹화
-    col_modules = {}
-    for x0, y0, x1, y1 in modules:
-        col_idx = round(x0 / pitch)
-        col_modules.setdefault(col_idx, []).append((x0, y0, x1, y1))
+    n = len(modules)
+    remove = [False] * n
+    y_extend = {}  # idx -> (y0, y1) 확장된 범위
 
-    sorted_cols = sorted(col_modules.keys())
-    merged = set()  # 병합되어 제거할 모듈 인덱스
+    # 컬럼 인덱스 계산
+    col_idx = [round(m[0] / pitch) for m in modules]
 
-    result = list(modules)
+    # 패스 1: 저커버리지 슬리버 감지 + 인접 고커버리지 모듈로 병합
+    for i in range(n):
+        if remove[i]:
+            continue
+        x0_i, y0_i, x1_i, y1_i, cov_i = modules[i]
 
-    for i in range(len(sorted_cols) - 1):
-        ci = sorted_cols[i]
-        cj = sorted_cols[i + 1]
+        if cov_i >= SLIVER_THRESHOLD:
+            continue  # 충분한 커버리지 → 유지
 
-        # 인접 컬럼만 (1칸 차이)
-        if cj - ci != 1:
+        ci = col_idx[i]
+
+        # 인접 컬럼에서 같은 스템의 고커버리지 모듈 찾기
+        best_j = -1
+        best_cov = -1
+        for j in range(n):
+            if i == j or remove[j]:
+                continue
+            cj = col_idx[j]
+            if abs(ci - cj) != 1:
+                continue
+
+            x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
+
+            # y범위 겹침 확인
+            overlap = min(y1_i, y1_j) - max(y0_i, y0_j)
+            min_h = min(y1_i - y0_i, y1_j - y0_j)
+            if min_h <= 0:
+                continue
+            if overlap / min_h < 0.5:
+                continue
+
+            # 인접 컬럼 중 가장 높은 커버리지를 가진 것 선택
+            if cov_j > best_cov:
+                best_cov = cov_j
+                best_j = j
+
+        if best_j >= 0:
+            # 슬리버 제거, 인접 모듈의 y범위 확장
+            remove[i] = True
+            x0_j, y0_j, x1_j, y1_j, cov_j = modules[best_j]
+            cur_y0, cur_y1 = y_extend.get(best_j, (y0_j, y1_j))
+            y_extend[best_j] = (min(cur_y0, y0_i), max(cur_y1, y1_i))
+
+    # 패스 2: 양쪽 모두 저커버리지인 분할 스템 처리
+    # (스템이 정확히 경계 위에 위치한 경우)
+    for i in range(n):
+        if remove[i]:
+            continue
+        x0_i, y0_i, x1_i, y1_i, cov_i = modules[i]
+        if cov_i >= SLIVER_THRESHOLD:
             continue
 
-        mods_i = col_modules[ci]
-        mods_j = col_modules[cj]
+        ci = col_idx[i]
 
-        for mi in mods_i:
-            for mj in mods_j:
-                # y범위 겹침 비율 계산
-                overlap_y0 = max(mi[1], mj[1])
-                overlap_y1 = min(mi[3], mj[3])
-                if overlap_y1 <= overlap_y0:
-                    continue
+        for j in range(i + 1, n):
+            if remove[j]:
+                continue
+            cj = col_idx[j]
+            if abs(ci - cj) != 1:
+                continue
 
-                overlap_h = overlap_y1 - overlap_y0
-                h_i = mi[3] - mi[1]
-                h_j = mj[3] - mj[1]
-                min_h = min(h_i, h_j)
+            x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
+            if cov_j >= SLIVER_THRESHOLD:
+                continue
 
-                # 80% 이상 겹침 → 같은 스템으로 판단
-                if overlap_h / min_h < 0.8:
-                    continue
+            # y범위 겹침 확인
+            overlap = min(y1_i, y1_j) - max(y0_i, y0_j)
+            min_h = min(y1_i - y0_i, y1_j - y0_j)
+            if min_h <= 0 or overlap / min_h < 0.5:
+                continue
 
-                # 짧은 쪽(파편) 제거, 긴 쪽의 y범위 확장
-                if h_i <= h_j:
-                    # mi가 파편 → 제거하고 mj의 y범위 확장
-                    if mi in result:
-                        result.remove(mi)
-                    idx_j = result.index(mj) if mj in result else -1
-                    if idx_j >= 0:
-                        ext_y0 = min(mi[1], mj[1])
-                        ext_y1 = max(mi[3], mj[3])
-                        result[idx_j] = (mj[0], ext_y0, mj[2], ext_y1)
-                else:
-                    if mj in result:
-                        result.remove(mj)
-                    idx_i = result.index(mi) if mi in result else -1
-                    if idx_i >= 0:
-                        ext_y0 = min(mi[1], mj[1])
-                        ext_y1 = max(mi[3], mj[3])
-                        result[idx_i] = (mi[0], ext_y0, mi[2], ext_y1)
+            # 둘 다 슬리버 → 커버리지 낮은 쪽 제거
+            if cov_i >= cov_j:
+                remove[j] = True
+                cur_y0, cur_y1 = y_extend.get(i, (y0_i, y1_i))
+                y_extend[i] = (min(cur_y0, y0_j), max(cur_y1, y1_j))
+            else:
+                remove[i] = True
+                cur_y0, cur_y1 = y_extend.get(j, (y0_j, y1_j))
+                y_extend[j] = (min(cur_y0, y0_i), max(cur_y1, y1_i))
+                break
+
+    # 결과 생성 (4-tuple로 변환, 커버리지 제거)
+    result = []
+    for i in range(n):
+        if remove[i]:
+            continue
+        x0, y0, x1, y1, cov = modules[i]
+        if i in y_extend:
+            y0, y1 = y_extend[i]
+        result.append((x0, y0, x1, y1))
 
     return result
 
@@ -392,8 +447,8 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
             if not modules:
                 continue
 
-            # ── 2차 보정: 스템 경계 파편 모듈 병합 ──
-            modules = merge_straddling_modules(modules, module_w, gap)
+            # ── 2차 보정: 커버리지 기반 스템 정규화 ──
+            modules = quantize_stems(modules, module_w, gap)
 
             new_glyph = modules_to_ttglyph(modules, radius, glyf)
             if new_glyph is None:
@@ -401,8 +456,11 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
                 continue
 
             glyf[glyph_name] = new_glyph
+            # bounds 재계산 (TTGlyphPen.glyph()은 xMin 없이 반환)
+            new_glyph.recalcBounds(glyf)
             # 모노스페이스: 모든 글리프 동일 AW
-            new_lsb = new_glyph.xMin if hasattr(new_glyph, 'xMin') and new_glyph.xMin is not None else 0
+            # LSB = 글리프의 실제 xMin (그리드 기반 센터링 이미 적용됨)
+            new_lsb = new_glyph.xMin if new_glyph.xMin is not None else 0
             hmtx[glyph_name] = (mono_aw, new_lsb)
             modified += 1
 
