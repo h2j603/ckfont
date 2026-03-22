@@ -253,117 +253,112 @@ def modules_to_ttglyph(modules, radius, glyf_table):
 
 
 def quantize_stems(modules, module_w, gap):
-    """2차 보정: 커버리지 기반 스템 정규화.
+    """2차 보정: 커버리지 합산 기반 스템 정규화.
 
-    스템이 컬럼 경계에 걸려서 양쪽에 얇은 슬리버로 분할되는 문제를 해결.
-    같은 너비의 세로 획이 항상 같은 수의 컬럼을 차지하도록 보장.
+    같은 너비의 세로 획이 그리드 위치에 관계없이 항상 같은 수의 컬럼으로
+    변환되도록 보장.
+
+    핵심 원리:
+      획 너비 W → 목표 컬럼 수 = round(커버리지 합)
+      커버리지 합은 획이 실제로 채우는 컬럼 수를 정확히 반영하므로,
+      같은 너비의 획은 위치에 관계없이 같은 커버리지 합 → 같은 컬럼 수.
 
     알고리즘:
-      1. 각 모듈의 커버리지(x방향 채움 비율) 확인
-      2. 저커버리지(< SLIVER_THRESHOLD) 모듈 = 슬리버(파편)로 판정
-      3. 인접 컬럼에 같은 y범위의 고커버리지 모듈이 있으면:
-         → 슬리버 제거, 인접 모듈의 y범위 확장
-      4. 양쪽 모두 저커버리지면 (스템이 정확히 경계 위):
-         → 둘 중 커버리지가 높은 쪽 유지, 나머지 제거
-
-    coverage 기반이므로 스템 너비에 관계없이 일관된 결과 보장.
+      1. y범위가 겹치는 인접 컬럼의 모듈들을 "스트로크 그룹"으로 묶기
+      2. 그룹 내 커버리지 합산 → 목표 컬럼 수 결정
+      3. 실제 컬럼 수 > 목표 → 커버리지 낮은 쪽 제거
+      4. 제거된 모듈의 y범위는 남은 모듈에 확장
     """
     if len(modules) < 2:
         return [(m[0], m[1], m[2], m[3]) for m in modules]
 
     pitch = module_w + gap
-    SLIVER_THRESHOLD = 0.55  # 이 미만이면 슬리버(파편)으로 판단
-
     n = len(modules)
-    remove = [False] * n
-    y_extend = {}  # idx -> (y0, y1) 확장된 범위
 
     # 컬럼 인덱스 계산
     col_idx = [round(m[0] / pitch) for m in modules]
 
-    # 패스 1: 저커버리지 슬리버 감지 + 인접 고커버리지 모듈로 병합
+    # ── 스트로크 그룹 구성 ──
+    # y범위가 50% 이상 겹치는 인접 컬럼의 모듈들을 하나의 그룹으로
+    visited = [False] * n
+    groups = []  # [[idx, idx, ...], ...]
+
     for i in range(n):
-        if remove[i]:
+        if visited[i]:
             continue
-        x0_i, y0_i, x1_i, y1_i, cov_i = modules[i]
+        visited[i] = True
+        group = [i]
 
-        if cov_i >= SLIVER_THRESHOLD:
-            continue  # 충분한 커버리지 → 유지
+        # BFS로 인접 모듈 탐색
+        queue = [i]
+        while queue:
+            cur = queue.pop(0)
+            x0_c, y0_c, x1_c, y1_c, cov_c = modules[cur]
+            cc = col_idx[cur]
 
-        ci = col_idx[i]
+            for j in range(n):
+                if visited[j]:
+                    continue
+                cj = col_idx[j]
+                if abs(cc - cj) != 1:
+                    continue
 
-        # 인접 컬럼에서 같은 스템의 고커버리지 모듈 찾기
-        best_j = -1
-        best_cov = -1
-        for j in range(n):
-            if i == j or remove[j]:
-                continue
-            cj = col_idx[j]
-            if abs(ci - cj) != 1:
-                continue
+                x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
 
-            x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
+                # y범위 겹침 확인
+                overlap = min(y1_c, y1_j) - max(y0_c, y0_j)
+                min_h = min(y1_c - y0_c, y1_j - y0_j)
+                if min_h <= 0:
+                    continue
+                if overlap / min_h < 0.5:
+                    continue
 
-            # y범위 겹침 확인
-            overlap = min(y1_i, y1_j) - max(y0_i, y0_j)
-            min_h = min(y1_i - y0_i, y1_j - y0_j)
-            if min_h <= 0:
-                continue
-            if overlap / min_h < 0.5:
-                continue
+                visited[j] = True
+                group.append(j)
+                queue.append(j)
 
-            # 인접 컬럼 중 가장 높은 커버리지를 가진 것 선택
-            if cov_j > best_cov:
-                best_cov = cov_j
-                best_j = j
+        groups.append(group)
 
-        if best_j >= 0:
-            # 슬리버 제거, 인접 모듈의 y범위 확장
-            remove[i] = True
-            x0_j, y0_j, x1_j, y1_j, cov_j = modules[best_j]
-            cur_y0, cur_y1 = y_extend.get(best_j, (y0_j, y1_j))
-            y_extend[best_j] = (min(cur_y0, y0_i), max(cur_y1, y1_i))
+    # ── 각 그룹에서 목표 컬럼 수 결정 + 초과분 제거 ──
+    remove = [False] * n
+    y_extend = {}  # idx -> (y0, y1)
 
-    # 패스 2: 양쪽 모두 저커버리지인 분할 스템 처리
-    # (스템이 정확히 경계 위에 위치한 경우)
-    for i in range(n):
-        if remove[i]:
-            continue
-        x0_i, y0_i, x1_i, y1_i, cov_i = modules[i]
-        if cov_i >= SLIVER_THRESHOLD:
+    for group in groups:
+        if len(group) <= 1:
             continue
 
-        ci = col_idx[i]
+        # 커버리지 합산 → 목표 컬럼 수
+        total_cov = sum(modules[i][4] for i in group)
+        target_cols = max(1, round(total_cov))
 
-        for j in range(i + 1, n):
-            if remove[j]:
-                continue
-            cj = col_idx[j]
-            if abs(ci - cj) != 1:
-                continue
+        if len(group) <= target_cols:
+            continue  # 이미 적정 수 또는 부족 → 그대로 유지
 
-            x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
-            if cov_j >= SLIVER_THRESHOLD:
-                continue
+        # 초과: 커버리지 낮은 순으로 제거
+        sorted_by_cov = sorted(group, key=lambda i: modules[i][4])
+        n_remove = len(group) - target_cols
+        to_remove = sorted_by_cov[:n_remove]
+        to_keep = sorted_by_cov[n_remove:]
 
-            # y범위 겹침 확인
-            overlap = min(y1_i, y1_j) - max(y0_i, y0_j)
-            min_h = min(y1_i - y0_i, y1_j - y0_j)
-            if min_h <= 0 or overlap / min_h < 0.5:
-                continue
+        for ri in to_remove:
+            remove[ri] = True
+            x0_r, y0_r, x1_r, y1_r, cov_r = modules[ri]
 
-            # 둘 다 슬리버 → 커버리지 낮은 쪽 제거
-            if cov_i >= cov_j:
-                remove[j] = True
-                cur_y0, cur_y1 = y_extend.get(i, (y0_i, y1_i))
-                y_extend[i] = (min(cur_y0, y0_j), max(cur_y1, y1_j))
-            else:
-                remove[i] = True
-                cur_y0, cur_y1 = y_extend.get(j, (y0_j, y1_j))
-                y_extend[j] = (min(cur_y0, y0_i), max(cur_y1, y1_i))
-                break
+            # 제거된 모듈의 y범위를 가장 가까운 유지 모듈에 확장
+            best_k = None
+            best_dist = float('inf')
+            for ki in to_keep:
+                dist = abs(col_idx[ri] - col_idx[ki])
+                if dist < best_dist:
+                    best_dist = dist
+                    best_k = ki
 
-    # 결과 생성 (4-tuple로 변환, 커버리지 제거)
+            if best_k is not None:
+                x0_k, y0_k, x1_k, y1_k, cov_k = modules[best_k]
+                cur_y0, cur_y1 = y_extend.get(best_k, (y0_k, y1_k))
+                y_extend[best_k] = (min(cur_y0, y0_r), max(cur_y1, y1_r))
+
+    # 결과 생성 (4-tuple, 커버리지 제거)
     result = []
     for i in range(n):
         if remove[i]:
@@ -516,9 +511,9 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    module_w = 120
-    gap = 40
-    radius = 55
+    module_w = 65
+    gap = 25
+    radius = 32
 
     # 인자 파싱
     args = sys.argv[1:]
