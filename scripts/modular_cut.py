@@ -146,22 +146,19 @@ def rounded_rect_path(x0, y0, x1, y1, r):
     return path
 
 
-def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=None):
-    """글리프에서 모듈 bbox 목록 추출 — 커버리지 정보 포함.
+def slice_glyph(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=None):
+    """글리프를 세로 컬럼으로 슬라이스 — 원래 형태 유지.
 
-    pathops INTERSECTION: 컬럼 직사각형과 글리프의 boolean 교차.
-    카운터(D, O, B 내부 구멍)를 정확히 처리.
+    bbox → 둥근사각형 변환 없이, 컬럼 교차 결과의 실제 컨투어를 보존.
+    곡선·사선 등 원본 형태가 그대로 남아 글자 인식성이 유지됨.
 
-    반환: [(x0, y0, x1, y1, coverage), ...]
-    coverage: 컬럼 내 x방향 채움 비율 (0.0~1.0)
+    반환: pathops.Path (모든 컬럼 슬라이스의 union)
     """
     pitch = module_w + gap
 
-    # 모노스페이스: 고정 AW 기준 그리드 / 일반: 글리프 AW 기준
     effective_aw = mono_aw if mono_aw else hmtx_entry[0]
     n_cols = max(1, round(effective_aw / pitch))
 
-    # 고정 그리드: effective_aw 중심 기준 (모노스페이스면 모든 글리프 동일)
     grid_cx = effective_aw / 2
     total_grid_w = n_cols * module_w + (n_cols - 1) * gap
     grid_start = grid_cx - total_grid_w / 2
@@ -169,73 +166,42 @@ def extract_modules(glyph_path, glyph_obj, module_w, gap, hmtx_entry, mono_aw=No
     y_lo = glyph_obj.yMin - 50
     y_hi = glyph_obj.yMax + 50
 
-    modules = []
-
+    # 모든 컬럼 스트립을 하나의 마스크로 합침
+    mask = pathops.Path()
     for ci in range(n_cols):
         col_x = grid_start + ci * pitch
-
-        # 컬럼 직사각형
-        col = pathops.Path()
-        pen = col.getPen()
+        strip = pathops.Path()
+        pen = strip.getPen()
         pen.moveTo((col_x, y_lo))
         pen.lineTo((col_x + module_w, y_lo))
         pen.lineTo((col_x + module_w, y_hi))
         pen.lineTo((col_x, y_hi))
         pen.closePath()
-
-        # Boolean intersection — 카운터 자동 처리
-        try:
-            result = pathops.op(
-                glyph_path, col,
-                pathops.PathOp.INTERSECTION,
-                fix_winding=True, clockwise=True,
-            )
-        except Exception:
-            continue
-
-        # 결과 컨투어 → 모듈 bbox + 커버리지
-        rec = RecordingPen()
-        result.draw(rec)
-
-        cur_pts = []
-        for op_name, args in rec.value:
-            if op_name == "moveTo":
-                cur_pts = [args[0]]
-            elif op_name in ("lineTo", "curveTo", "qCurveTo"):
-                cur_pts.extend(args)
-            elif op_name == "closePath" and cur_pts:
-                valid_pts = [p for p in cur_pts if p is not None]
-                if valid_pts:
-                    xs = [p[0] for p in valid_pts]
-                    ys = [p[1] for p in valid_pts]
-                    seg_w = max(xs) - min(xs)
-                    seg_h = max(ys) - min(ys)
-                    if seg_h >= MIN_MODULE_H:
-                        coverage = min(1.0, seg_w / module_w)
-                        modules.append((col_x, min(ys), col_x + module_w, max(ys), coverage))
-                cur_pts = []
-
-    return modules
-
-
-def modules_to_ttglyph(modules, radius, glyf_table):
-    """모듈 bbox 목록 → 둥근 사각형으로 구성된 TTGlyph."""
-    if not modules:
-        return None
-
-    # 모든 모듈의 둥근 사각형을 합치기 (union)
-    combined = pathops.Path()
-    for x0, y0, x1, y1 in modules:
-        rrect = rounded_rect_path(x0, y0, x1, y1, radius)
-        combined = pathops.op(
-            combined, rrect,
+        mask = pathops.op(
+            mask, strip,
             pathops.PathOp.UNION,
             fix_winding=True, clockwise=True,
         )
 
-    # pathops (cubic) → recording → cu2qu → TTGlyph
+    # 글리프와 마스크의 교차 = 슬라이스된 결과
+    try:
+        result = pathops.op(
+            glyph_path, mask,
+            pathops.PathOp.INTERSECTION,
+            fix_winding=True, clockwise=True,
+        )
+        return result
+    except Exception:
+        return None
+
+
+def sliced_path_to_ttglyph(sliced_path, glyf_table):
+    """슬라이스된 pathops.Path → TTGlyph 변환."""
+    if sliced_path is None:
+        return None
+
     rec = RecordingPen()
-    combined.draw(rec)
+    sliced_path.draw(rec)
 
     if not rec.value:
         return None
@@ -250,125 +216,6 @@ def modules_to_ttglyph(modules, radius, glyf_table):
         return tt_pen.glyph()
     except Exception:
         return None
-
-
-def quantize_stems(modules, module_w, gap):
-    """2차 보정: 커버리지 합산 기반 스템 정규화.
-
-    같은 너비의 세로 획이 그리드 위치에 관계없이 항상 같은 수의 컬럼으로
-    변환되도록 보장.
-
-    핵심 원리:
-      획 너비 W → 목표 컬럼 수 = round(커버리지 합)
-      커버리지 합은 획이 실제로 채우는 컬럼 수를 정확히 반영하므로,
-      같은 너비의 획은 위치에 관계없이 같은 커버리지 합 → 같은 컬럼 수.
-
-    알고리즘:
-      1. y범위가 겹치는 인접 컬럼의 모듈들을 "스트로크 그룹"으로 묶기
-      2. 그룹 내 커버리지 합산 → 목표 컬럼 수 결정
-      3. 실제 컬럼 수 > 목표 → 커버리지 낮은 쪽 제거
-      4. 제거된 모듈의 y범위는 남은 모듈에 확장
-    """
-    if len(modules) < 2:
-        return [(m[0], m[1], m[2], m[3]) for m in modules]
-
-    pitch = module_w + gap
-    n = len(modules)
-
-    # 컬럼 인덱스 계산
-    col_idx = [round(m[0] / pitch) for m in modules]
-
-    # ── 스트로크 그룹 구성 ──
-    # y범위가 50% 이상 겹치는 인접 컬럼의 모듈들을 하나의 그룹으로
-    visited = [False] * n
-    groups = []  # [[idx, idx, ...], ...]
-
-    for i in range(n):
-        if visited[i]:
-            continue
-        visited[i] = True
-        group = [i]
-
-        # BFS로 인접 모듈 탐색
-        queue = [i]
-        while queue:
-            cur = queue.pop(0)
-            x0_c, y0_c, x1_c, y1_c, cov_c = modules[cur]
-            cc = col_idx[cur]
-
-            for j in range(n):
-                if visited[j]:
-                    continue
-                cj = col_idx[j]
-                if abs(cc - cj) != 1:
-                    continue
-
-                x0_j, y0_j, x1_j, y1_j, cov_j = modules[j]
-
-                # y범위 겹침 확인
-                overlap = min(y1_c, y1_j) - max(y0_c, y0_j)
-                min_h = min(y1_c - y0_c, y1_j - y0_j)
-                if min_h <= 0:
-                    continue
-                if overlap / min_h < 0.5:
-                    continue
-
-                visited[j] = True
-                group.append(j)
-                queue.append(j)
-
-        groups.append(group)
-
-    # ── 각 그룹에서 목표 컬럼 수 결정 + 초과분 제거 ──
-    remove = [False] * n
-    y_extend = {}  # idx -> (y0, y1)
-
-    for group in groups:
-        if len(group) <= 1:
-            continue
-
-        # 커버리지 합산 → 목표 컬럼 수
-        total_cov = sum(modules[i][4] for i in group)
-        target_cols = max(1, round(total_cov))
-
-        if len(group) <= target_cols:
-            continue  # 이미 적정 수 또는 부족 → 그대로 유지
-
-        # 초과: 커버리지 낮은 순으로 제거
-        sorted_by_cov = sorted(group, key=lambda i: modules[i][4])
-        n_remove = len(group) - target_cols
-        to_remove = sorted_by_cov[:n_remove]
-        to_keep = sorted_by_cov[n_remove:]
-
-        for ri in to_remove:
-            remove[ri] = True
-            x0_r, y0_r, x1_r, y1_r, cov_r = modules[ri]
-
-            # 제거된 모듈의 y범위를 가장 가까운 유지 모듈에 확장
-            best_k = None
-            best_dist = float('inf')
-            for ki in to_keep:
-                dist = abs(col_idx[ri] - col_idx[ki])
-                if dist < best_dist:
-                    best_dist = dist
-                    best_k = ki
-
-            if best_k is not None:
-                x0_k, y0_k, x1_k, y1_k, cov_k = modules[best_k]
-                cur_y0, cur_y1 = y_extend.get(best_k, (y0_k, y1_k))
-                y_extend[best_k] = (min(cur_y0, y0_r), max(cur_y1, y1_r))
-
-    # 결과 생성 (4-tuple, 커버리지 제거)
-    result = []
-    for i in range(n):
-        if remove[i]:
-            continue
-        x0, y0, x1, y1, cov = modules[i]
-        if i in y_extend:
-            y0, y1 = y_extend[i]
-        result.append((x0, y0, x1, y1))
-
-    return result
 
 
 def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
@@ -434,18 +281,15 @@ def process_font(input_path, output_path, name_suffix, module_w, gap, radius):
             )
             gs[glyph_name].draw(transform_pen)
 
-            modules = extract_modules(
+            sliced = slice_glyph(
                 glyph_path, g, module_w, gap, hmtx[glyph_name],
                 mono_aw=mono_aw,
             )
 
-            if not modules:
+            if sliced is None:
                 continue
 
-            # ── 2차 보정: 커버리지 기반 스템 정규화 ──
-            modules = quantize_stems(modules, module_w, gap)
-
-            new_glyph = modules_to_ttglyph(modules, radius, glyf)
+            new_glyph = sliced_path_to_ttglyph(sliced, glyf)
             if new_glyph is None:
                 errors += 1
                 continue
